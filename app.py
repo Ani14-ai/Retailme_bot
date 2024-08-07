@@ -42,7 +42,7 @@ def get_context_retriever_chain(vector_store):
     return retriever_chain
 
 def get_conversational_rag_chain(retriever_chain): 
-    llm = ChatOpenAI()
+    llm = ChatOpenAI(model="gpt-4o-mini-2024-07-18" , temperature = 0.7)
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", "You are a professional assistant for RetailME. You help users find information with a precise and accurate attitude. You answer their queries in complete sentences within 100 tokens, based on the context:\n\n{context}"),
@@ -67,13 +67,6 @@ def get_response(user_input, vector_store, chat_history):
 vector_store = None
 chat_history = [AIMessage(content="Hello! I'm your friendly and professional assistant for RetailME. How can I assist you today?")]
 
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-@app.route('/<path:path>')
-def serve_page(path):
-    return render_template(path)
 
 @app.route('/api/upload_doc', methods=['POST'])
 def upload_pdf():
