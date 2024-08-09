@@ -45,7 +45,7 @@ def get_conversational_rag_chain(retriever_chain):
     llm = ChatOpenAI(model="gpt-4o-mini-2024-07-18" , temperature = 0.7)
     
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a professional assistant for RetailME. You help users find information with a precise and accurate attitude. You answer their queries in complete sentences within 100 tokens, based on the context:\n\n{context}"),
+        ("system", "You are a professional assistant for Images RetailME. You help users find information with a precise and accurate attitude. You answer their queries in complete sentences and in precise manner , not in points and not using any bold letters, within 100 tokens,to the point and very precise and short, based on the context:\n\n{context}"),
         MessagesPlaceholder(variable_name="chat_history"),
         ("user", "{input}"),
     ])
