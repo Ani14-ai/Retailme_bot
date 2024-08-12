@@ -50,15 +50,18 @@ def save_vector_store(document_chunks):
 def load_document_chunks(file_path, websites):
     """Load and split documents to handle large files and multiple websites."""
     loader = PyMuPDFLoader(file_path)
+    site1 = WebBaseLoader("https://middleeastretailforum.com/")
+    site2 = WebBaseLoader("https://middleeastretailforum.com/speakers-2024/")
+    site3= WebBaseLoader("https://middleeastretailforum.com/partners-2024/")
+    site4= WebBaseLoader("https://middleeastretailforum.com/awards/")
+    site5= WebBaseLoader("https://middleeastretailforum.com/nomination-process/")
+    site6= WebBaseLoader("https://middleeastretailforum.com/jury-2024/")
+    site7= WebBaseLoader("https://middleeastretailforum.com/about-images-group/")
     document1 = loader.load()
-    document2 = []
-    for site in websites:
-        site_loader = WebBaseLoader(site)
-        doc_chunks = site_loader.load()
-        document2.extend(doc_chunks)
-        combined_documents = document1 + document2
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)  # Adjusted chunk size
-    document_chunks = text_splitter.split_documents(combined_documents)
+    document2 = site1.load() + site2.load() + site3.load() + site4.load() + site5.load() + site6.load() + site7.load()
+    document =document1 + document2
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=200)  # Adjusted chunk size
+    document_chunks = text_splitter.split_documents(document)
     return document_chunks
 
 def get_context_retriever_chain():
