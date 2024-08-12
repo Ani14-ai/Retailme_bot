@@ -18,18 +18,25 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app, resources={"/api/*": {"origins": "*"}})
 
+# Directory to persist the vector store
 VECTOR_STORE_DIR = "persistent_vector_store"
 
-def get_or_create_vector_store(document_chunks=None):
-    """Get or create the vector store, with persistence."""
-    if document_chunks:
-        # Create a new vector store if document_chunks are provided
-        vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings(), persist_directory=VECTOR_STORE_DIR)
-        vector_store.persist()  # Save the vector store
-        return vector_store
+# Initialize the vector store as None initially
+vector_store = None
+
+def initialize_vector_store():
+    """Initialize the vector store from the persistent directory, if it exists."""
+    global vector_store
+    if os.path.exists(VECTOR_STORE_DIR):
+        vector_store = Chroma(persist_directory=VECTOR_STORE_DIR, embedding_function=OpenAIEmbeddings())
     else:
-        # Load an existing vector store
-        return Chroma(persist_directory=VECTOR_STORE_DIR, embedding_function=OpenAIEmbeddings())
+        vector_store = None
+
+def save_vector_store(document_chunks):
+    """Save the vector store after creating it from document chunks."""
+    global vector_store
+    vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings(), persist_directory=VECTOR_STORE_DIR)
+    vector_store.persist()
 
 def load_document_chunks(file_path, websites):
     """Load and split documents to handle large files and multiple websites."""
@@ -47,7 +54,7 @@ def load_document_chunks(file_path, websites):
     document_chunks = text_splitter.split_documents(combined_documents)
     return document_chunks
 
-def get_context_retriever_chain(vector_store):
+def get_context_retriever_chain():
     llm = ChatOpenAI()
     retriever = vector_store.as_retriever()
     prompt = ChatPromptTemplate.from_messages([
@@ -68,11 +75,8 @@ def get_conversational_rag_chain(retriever_chain):
     stuff_documents_chain = create_stuff_documents_chain(llm, prompt)
     return create_retrieval_chain(retriever_chain, stuff_documents_chain)
 
-def get_response(user_input, vector_store):
-    if vector_store is None:
-        return "The vector store has not been initialized. Please upload a document first."
-
-    retriever_chain = get_context_retriever_chain(vector_store)
+def get_response(user_input):
+    retriever_chain = get_context_retriever_chain()
     conversation_rag_chain = get_conversational_rag_chain(retriever_chain)
 
     response = conversation_rag_chain.invoke({
@@ -83,7 +87,6 @@ def get_response(user_input, vector_store):
 
 @app.route('/api/upload_doc', methods=['POST'])
 def upload_pdf():
-    global vector_store
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file part"}), 400
@@ -114,7 +117,7 @@ def upload_pdf():
                 "https://middleeastretailforum.com/companies-over-the-years/"
             ]
             document_chunks = load_document_chunks(file_path, websites)
-            vector_store = get_or_create_vector_store(document_chunks)
+            save_vector_store(document_chunks)
             os.remove(file_path)
             return jsonify({"message": "PDF processed successfully."})
     except Exception as e:
@@ -126,15 +129,16 @@ def chat():
     data = request.json
     user_input = data.get('question')
 
-    # Load the vector store if not already loaded
+    # Ensure vector store is initialized
     if vector_store is None:
-        vector_store = get_or_create_vector_store()
+        initialize_vector_store()
 
     if vector_store is None:
-        return jsonify({"error": "The vector store is not ready yet. Please try again after the document is uploaded and processed."}), 503
+        return jsonify({"error": "The vector store is not ready yet. Please upload a document first."}), 503
 
-    response = get_response(user_input, vector_store)
+    response = get_response(user_input)
     return jsonify({"response": response})
 
 if __name__ == '__main__':
+    initialize_vector_store()
     app.run(debug=False)
