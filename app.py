@@ -16,15 +16,18 @@ app = Flask(__name__)
 CORS(app, resources={"/api/*": {"origins": "*"}})
 api_key=os.getenv("OPENAI_API_KEY")
 os.environ["openai_api_key"] = api_key
-
 def get_vectorstore_from_pdf(file_path):
     loader = PyMuPDFLoader(file_path)
-    site1 = WebBaseLoader("https://www.imagesretailme.com/")
-    site2 = WebBaseLoader("https://www.imagesretailme.com/category/leadership/")
-    site3= WebBaseLoader("https://www.imagesretailme.com/bookstore/")
+    site1 = WebBaseLoader("https://middleeastretailforum.com/")
+    site2 = WebBaseLoader("https://middleeastretailforum.com/speakers-2024/")
+    site3= WebBaseLoader("https://middleeastretailforum.com/partners-2024/")
+    site4= WebBaseLoader("https://middleeastretailforum.com/awards/")
+    site5= WebBaseLoader("https://middleeastretailforum.com/nomination-process/")
+    site6= WebBaseLoader("https://middleeastretailforum.com/jury-2024/")
+    site7= WebBaseLoader("https://middleeastretailforum.com/about-images-group/")
     document1 = loader.load()
-    document2 = site1.load() + site2.load() + site3.load()
-    document=document1 + document2
+    document2 = site1.load() + site2.load() + site3.load() + site4.load() + + site5.load() + site6.load() + site7.load()
+    document =document1 + document2
     text_splitter = RecursiveCharacterTextSplitter()
     document_chunks = text_splitter.split_documents(document)
     vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings())
@@ -45,7 +48,7 @@ def get_conversational_rag_chain(retriever_chain):
     llm = ChatOpenAI(model="gpt-4o-mini-2024-07-18" , temperature = 0.7)
     
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a professional assistant for Images RetailME. You help users find information with a precise and accurate attitude. You answer their queries in complete sentences and in precise manner , not in points and not using any bold letters, within 100 tokens,to the point and very precise and short, based on the context:\n\n{context}"),
+        ("system", "You are a professional and friendly AI editor at Images RetailMe , your name is Noura and Your job is to provide assistance to the users who want to know about the Middle East Retail Forum taking place on 26th September 2024 . You help users find information with a precise and accurate attitude. You answer their queries in complete sentences and in precise manner , not in points and not using any bold letters, within 100 tokens,to the point and very precise and short, based on the context:\n\n{context}"),
         MessagesPlaceholder(variable_name="chat_history"),
         ("user", "{input}"),
     ])
@@ -65,7 +68,7 @@ def get_response(user_input, vector_store, chat_history):
 
 
 vector_store = None
-chat_history = [AIMessage(content="Hello! I'm your friendly and professional assistant for RetailME. How can I assist you today?")]
+chat_history = [AIMessage(content="Hello! I'm a friendly and professional  AI editor at Images RetailME, my name is Noura. How can I assist you today?")]
 
 
 @app.route('/api/upload_doc', methods=['POST'])
