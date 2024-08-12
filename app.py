@@ -16,38 +16,50 @@ app = Flask(__name__)
 CORS(app, resources={"/api/*": {"origins": "*"}})
 api_key=os.getenv("OPENAI_API_KEY")
 os.environ["openai_api_key"] = api_key
-def get_vectorstore_from_pdf(file_path, web_urls):
-    pdf_loader = PyMuPDFLoader(file_path)
-    pdf_document = pdf_loader.load()
-    web_documents = []
-    for url in web_urls:
-        web_loader = WebBaseLoader(url)
-        web_documents.extend(web_loader.load())
-    all_documents = pdf_document + web_documents
+def get_vectorstore_from_pdf(file_path):
+    # Load the PDF document using PyMuPDFLoader
+    loader = PyMuPDFLoader(file_path)
+    document1 = loader.load()
+
+    # Define the list of websites to be loaded
+    websites = [
+        "https://middleeastretailforum.com/",
+        "https://middleeastretailforum.com/download-brochure/",
+        "https://middleeastretailforum.com/mrf-showreel/",
+        "https://middleeastretailforum.com/speakers-over-the-years/",
+        "https://middleeastretailforum.com/speakers-2024/",
+        "https://middleeastretailforum.com/agenda-2024/speakers-2024/",
+        "https://middleeastretailforum.com/partners-2024/",
+        "https://middleeastretailforum.com/nomination-process/",
+        "https://middleeastretailforum.com/award-categories/",
+        "https://middleeastretailforum.com/jury-2024/",
+        "https://middleeastretailforum.com/partners-2023/",
+        "https://middleeastretailforum.com/speakers-2023/",
+        "https://middleeastretailforum.com/agenda-2023/",
+        "https://middleeastretailforum.com/mrf-2023-post-show-report/",
+        "https://middleeastretailforum.com/speakers-2022/",
+        "https://middleeastretailforum.com/partners-2022/",
+        "https://middleeastretailforum.com/agenda-2022/",
+        "https://middleeastretailforum.com/companies-over-the-years/"
+    ]
+
+    # Load all web pages using WebBaseLoader
+    document2 = []
+    for site in websites:
+        site_loader = WebBaseLoader(site)
+        document2 += site_loader.load()
+    
+    # Combine the PDF document and web documents
+    combined_documents = document1 + document2
+
+    # Split the combined documents into smaller chunks
     text_splitter = RecursiveCharacterTextSplitter()
-    document_chunks = text_splitter.split_documents(all_documents)
-    vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings())  
+    document_chunks = text_splitter.split_documents(combined_documents)
+
+    # Generate a vector store from the document chunks
+    vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings())
+    
     return vector_store
-web_urls = [
-    "https://middleeastretailforum.com/",
-    "https://middleeastretailforum.com/download-brochure/",
-    "https://middleeastretailforum.com/mrf-showreel/",
-    "https://middleeastretailforum.com/speakers-over-the-years/",
-    "https://middleeastretailforum.com/speakers-2024/",
-    "https://middleeastretailforum.com/agenda-2024/speakers-2024/",
-    "https://middleeastretailforum.com/partners-2024/",
-    "https://middleeastretailforum.com/nomination-process/",
-    "https://middleeastretailforum.com/award-categories/",
-    "https://middleeastretailforum.com/jury-2024/",
-    "https://middleeastretailforum.com/partners-2023/",
-    "https://middleeastretailforum.com/speakers-2023/",
-    "https://middleeastretailforum.com/agenda-2023/",
-    "https://middleeastretailforum.com/mrf-2023-post-show-report/",
-    "https://middleeastretailforum.com/speakers-2022/",
-    "https://middleeastretailforum.com/partners-2022/",
-    "https://middleeastretailforum.com/agenda-2022/",
-    "https://middleeastretailforum.com/companies-over-the-years/"
-]
 
 
 def get_context_retriever_chain(vector_store):
@@ -100,7 +112,7 @@ def upload_pdf():
         if file:
             file_path = f"temp_{file.filename}"
             file.save(file_path)
-            vector_store = get_vectorstore_from_pdf(file_path , web_urls)
+            vector_store = get_vectorstore_from_pdf(file_path)
             os.remove(file_path)
             return jsonify({"message": "PDF processed successfully."})
     except Exception as e:
