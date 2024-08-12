@@ -87,7 +87,7 @@ def get_response(user_input, vector_store, chat_history):
     })
     return response['answer']
 
-vector_store = None
+#vector_store = None
 chat_history = [AIMessage(content="Hello! I'm a friendly and professional AI editor at Images RetailME, my name is Noura. How can I assist you today?")]
 
 @app.route('/api/upload_doc', methods=['POST'])
