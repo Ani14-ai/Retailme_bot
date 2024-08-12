@@ -26,7 +26,7 @@ def get_vectorstore_from_pdf(file_path):
     site6= WebBaseLoader("https://middleeastretailforum.com/jury-2024/")
     site7= WebBaseLoader("https://middleeastretailforum.com/about-images-group/")
     document1 = loader.load()
-    document2 = site1.load() + site2.load() + site3.load() + site4.load() + + site5.load() + site6.load() + site7.load()
+    document2 = site1.load() + site2.load() + site3.load() + site4.load() + site5.load() + site6.load() + site7.load()
     document =document1 + document2
     text_splitter = RecursiveCharacterTextSplitter()
     document_chunks = text_splitter.split_documents(document)
