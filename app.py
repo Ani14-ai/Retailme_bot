@@ -11,8 +11,6 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 import os
-import asyncio
-import logging
 
 load_dotenv()
 
@@ -20,23 +18,20 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app, resources={"/api/*": {"origins": "*"}})
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+# Global storage for vector store and initialization flag
+vector_store = None
+vector_store_ready = False
 
-# Load the OpenAI API key from the environment
-api_key = os.getenv("OPENAI_API_KEY")
-os.environ["openai_api_key"] = api_key
-
-async def load_document_chunks(file_path, websites):
-    """Load and split documents asynchronously to handle large files and multiple websites."""
+def load_document_chunks(file_path, websites):
+    """Load and split documents to handle large files and multiple websites."""
     try:
         loader = PyMuPDFLoader(file_path)
-        document1 = await asyncio.to_thread(loader.load)
+        document1 = loader.load()
 
         document2 = []
         for site in websites:
             site_loader = WebBaseLoader(site)
-            doc_chunks = await asyncio.to_thread(site_loader.load)
+            doc_chunks = site_loader.load()
             document2.extend(doc_chunks)
 
         combined_documents = document1 + document2
@@ -44,7 +39,6 @@ async def load_document_chunks(file_path, websites):
         document_chunks = text_splitter.split_documents(combined_documents)
         return document_chunks
     except Exception as e:
-        logging.error(f"Error during document loading: {str(e)}")
         raise
 
 def get_vectorstore_from_chunks(document_chunks):
@@ -53,7 +47,6 @@ def get_vectorstore_from_chunks(document_chunks):
         vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings())
         return vector_store
     except Exception as e:
-        logging.error(f"Error during vector store creation: {str(e)}")
         raise
 
 def get_context_retriever_chain(vector_store):
@@ -77,22 +70,22 @@ def get_conversational_rag_chain(retriever_chain):
     stuff_documents_chain = create_stuff_documents_chain(llm, prompt)
     return create_retrieval_chain(retriever_chain, stuff_documents_chain)
 
-def get_response(user_input, vector_store, chat_history):
+def get_response(user_input, vector_store):
+    if vector_store is None:
+        return "The vector store has not been initialized. Please upload a document first."
+
     retriever_chain = get_context_retriever_chain(vector_store)
     conversation_rag_chain = get_conversational_rag_chain(retriever_chain)
 
     response = conversation_rag_chain.invoke({
-        "chat_history": chat_history,
+        "chat_history": [],
         "input": user_input
     })
     return response['answer']
 
-#vector_store = None
-chat_history = [AIMessage(content="Hello! I'm a friendly and professional AI editor at Images RetailME, my name is Noura. How can I assist you today?")]
-
 @app.route('/api/upload_doc', methods=['POST'])
-async def upload_pdf():
-    global vector_store
+def upload_pdf():
+    global vector_store, vector_store_ready
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file part"}), 400
@@ -122,22 +115,25 @@ async def upload_pdf():
                 "https://middleeastretailforum.com/agenda-2022/",
                 "https://middleeastretailforum.com/companies-over-the-years/"
             ]
-            document_chunks = await load_document_chunks(file_path, websites)
+            document_chunks = load_document_chunks(file_path, websites)
             vector_store = get_vectorstore_from_chunks(document_chunks)
+            vector_store_ready = True  # Mark vector store as ready
             os.remove(file_path)
             return jsonify({"message": "PDF processed successfully."})
     except Exception as e:
-        logging.error(f"Error during PDF upload: {str(e)}")
+        vector_store_ready = False  # Ensure it's not marked ready if there's an error
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ask', methods=['POST'])
 def chat():
-    global chat_history, vector_store
+    global vector_store, vector_store_ready
     data = request.json
     user_input = data.get('question')
-    response = get_response(user_input, vector_store, chat_history)
-    chat_history.append(HumanMessage(content=user_input))
-    chat_history.append(AIMessage(content=response))
+
+    if not vector_store_ready:
+        return jsonify({"error": "The vector store is not ready yet. Please try again after the document is uploaded and processed."}), 503
+
+    response = get_response(user_input, vector_store)
     return jsonify({"response": response})
 
 if __name__ == '__main__':
