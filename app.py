@@ -103,7 +103,7 @@ def upload_pdf():
         if file:
             file_path = f"temp_{file.filename}"
             file.save(file_path)
-            web_urls = [
+            websites = [
             "https://middleeastretailforum.com/",
             "https://middleeastretailforum.com/download-brochure/",
             "https://middleeastretailforum.com/mrf-showreel/",
