@@ -103,7 +103,7 @@ async def upload_pdf():
             file_path = f"temp_{file.filename}"
             file.save(file_path)
             
-          websites = [
+        websites = [
                 "https://middleeastretailforum.com/",
                 "https://middleeastretailforum.com/download-brochure/",
                 "https://middleeastretailforum.com/mrf-showreel/",
