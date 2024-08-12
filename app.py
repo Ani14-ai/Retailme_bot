@@ -115,9 +115,9 @@ def upload_pdf():
         logging.error(f"Error during PDF upload: {e}")
         return jsonify({"error": str(e)}), 500
 
-def async_load_and_save(file_path, websites):
+def async_load_and_save(file_path):
     try:
-        document_chunks = load_document_chunks(file_path, websites)
+        document_chunks = load_document_chunks(file_path)
         save_vector_store(document_chunks)
         os.remove(file_path)
         logging.info("PDF processed successfully and vector store updated.")
