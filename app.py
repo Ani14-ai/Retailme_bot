@@ -18,17 +18,18 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app, resources={"/api/*": {"origins": "*"}})
 
-VECTOR_STORE_PATH = "vector_store_data"
+VECTOR_STORE_DIR = "persistent_vector_store"
 
-def save_vector_store(vector_store, path=VECTOR_STORE_PATH):
-    """Save the vector store to disk."""
-    vector_store.save(path)
-
-def load_vector_store(path=VECTOR_STORE_PATH):
-    """Load the vector store from disk."""
-    if os.path.exists(path):
-        return Chroma.load(path)
-    return None
+def get_or_create_vector_store(document_chunks=None):
+    """Get or create the vector store, with persistence."""
+    if document_chunks:
+        # Create a new vector store if document_chunks are provided
+        vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings(), persist_directory=VECTOR_STORE_DIR)
+        vector_store.persist()  # Save the vector store
+        return vector_store
+    else:
+        # Load an existing vector store
+        return Chroma(persist_directory=VECTOR_STORE_DIR, embedding_function=OpenAIEmbeddings())
 
 def load_document_chunks(file_path, websites):
     """Load and split documents to handle large files and multiple websites."""
@@ -45,12 +46,6 @@ def load_document_chunks(file_path, websites):
     text_splitter = RecursiveCharacterTextSplitter()
     document_chunks = text_splitter.split_documents(combined_documents)
     return document_chunks
-
-def get_vectorstore_from_chunks(document_chunks):
-    """Generate a vector store from the document chunks."""
-    vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings())
-    save_vector_store(vector_store)  # Save the vector store after creation
-    return vector_store
 
 def get_context_retriever_chain(vector_store):
     llm = ChatOpenAI()
@@ -119,7 +114,7 @@ def upload_pdf():
                 "https://middleeastretailforum.com/companies-over-the-years/"
             ]
             document_chunks = load_document_chunks(file_path, websites)
-            vector_store = get_vectorstore_from_chunks(document_chunks)
+            vector_store = get_or_create_vector_store(document_chunks)
             os.remove(file_path)
             return jsonify({"message": "PDF processed successfully."})
     except Exception as e:
@@ -133,7 +128,7 @@ def chat():
 
     # Load the vector store if not already loaded
     if vector_store is None:
-        vector_store = load_vector_store()
+        vector_store = get_or_create_vector_store()
 
     if vector_store is None:
         return jsonify({"error": "The vector store is not ready yet. Please try again after the document is uploaded and processed."}), 503
