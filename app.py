@@ -47,7 +47,7 @@ def save_vector_store(document_chunks):
     vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings(), persist_directory=VECTOR_STORE_DIR)
     vector_store.persist()
 
-def load_document_chunks(file_path, websites):
+def load_document_chunks(file_path):
     """Load and split documents to handle large files and multiple websites."""
     loader = PyMuPDFLoader(file_path)
     site1 = WebBaseLoader("https://middleeastretailforum.com/")
@@ -57,10 +57,13 @@ def load_document_chunks(file_path, websites):
     site5= WebBaseLoader("https://middleeastretailforum.com/nomination-process/")
     site6= WebBaseLoader("https://middleeastretailforum.com/jury-2024/")
     site7= WebBaseLoader("https://middleeastretailforum.com/about-images-group/")
+    site8= WebBaseLoader("https://middleeastretailforum.com/agenda-2024/")
+    site9= WebBaseLoader("https://middleeastretailforum.com/award-categories/")
+    site10= WebBaseLoader("https://middleeastretailforum.com/speakers-2023/")    
     document1 = loader.load()
-    document2 = site1.load() + site2.load() + site3.load() + site4.load() + site5.load() + site6.load() + site7.load()
-    document =document1 + document2
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=200)  # Adjusted chunk size
+    document2 = site1.load() + site2.load() + site3.load() + site4.load() + site5.load() + site6.load() + site7.load() + site8.load()
+    document = document1 + document2
+    text_splitter = RecursiveCharacterTextSplitter()  # Adjusted chunk size
     document_chunks = text_splitter.split_documents(document)
     return document_chunks
 
@@ -106,28 +109,7 @@ def upload_pdf():
         if file:
             file_path = f"temp_{file.filename}"
             file.save(file_path)
-            websites = [
-            "https://middleeastretailforum.com/",
-            "https://middleeastretailforum.com/download-brochure/",
-            "https://middleeastretailforum.com/mrf-showreel/",
-            "https://middleeastretailforum.com/speakers-over-the-years/",
-            "https://middleeastretailforum.com/speakers-2024/",
-            "https://middleeastretailforum.com/agenda-2024/speakers-2024/",
-            "https://middleeastretailforum.com/partners-2024/",
-            "https://middleeastretailforum.com/nomination-process/",
-            "https://middleeastretailforum.com/award-categories/",
-            "https://middleeastretailforum.com/jury-2024/",
-            "https://middleeastretailforum.com/partners-2023/",
-            "https://middleeastretailforum.com/speakers-2023/",
-            "https://middleeastretailforum.com/agenda-2023/",
-            "https://middleeastretailforum.com/mrf-2023-post-show-report/",
-            "https://middleeastretailforum.com/speakers-2022/",
-            "https://middleeastretailforum.com/partners-2022/",
-            "https://middleeastretailforum.com/agenda-2022/",
-            "https://middleeastretailforum.com/companies-over-the-years/"
-            ]
-            # Use asynchronous processing for large document loading and vector store saving
-            executor.submit(async_load_and_save, file_path, websites)
+            executor.submit(async_load_and_save, file_path)
             return jsonify({"message": "PDF is being processed. Please check back later."})
     except Exception as e:
         logging.error(f"Error during PDF upload: {e}")
