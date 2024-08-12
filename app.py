@@ -47,9 +47,7 @@ def load_document_chunks(file_path, websites):
         site_loader = WebBaseLoader(site)
         doc_chunks = site_loader.load()
         document2.extend(doc_chunks)
-        print(document2)
-
-    combined_documents = document1 + document2
+        combined_documents = document1 + document2
     text_splitter = RecursiveCharacterTextSplitter()
     document_chunks = text_splitter.split_documents(combined_documents)
     return document_chunks
@@ -96,7 +94,7 @@ def upload_pdf():
         if file:
             file_path = f"temp_{file.filename}"
             file.save(file_path)
-            websites = [
+            web_urls = [
                 "https://middleeastretailforum.com/",
                 "https://middleeastretailforum.com/download-brochure/",
                 "https://middleeastretailforum.com/mrf-showreel/",
@@ -107,6 +105,13 @@ def upload_pdf():
                 "https://middleeastretailforum.com/nomination-process/",
                 "https://middleeastretailforum.com/award-categories/",
                 "https://middleeastretailforum.com/jury-2024/",
+                "https://middleeastretailforum.com/partners-2023/",
+                "https://middleeastretailforum.com/speakers-2023/",
+                "https://middleeastretailforum.com/agenda-2023/",
+                "https://middleeastretailforum.com/mrf-2023-post-show-report/",
+                "https://middleeastretailforum.com/speakers-2022/",
+                "https://middleeastretailforum.com/partners-2022/",
+                "https://middleeastretailforum.com/agenda-2022/",
                 "https://middleeastretailforum.com/companies-over-the-years/"
             ]
             document_chunks = load_document_chunks(file_path, websites)
