@@ -42,12 +42,12 @@ def load_document_chunks(file_path, websites):
     """Load and split documents to handle large files and multiple websites."""
     loader = PyMuPDFLoader(file_path)
     document1 = loader.load()
-
     document2 = []
     for site in websites:
         site_loader = WebBaseLoader(site)
         doc_chunks = site_loader.load()
         document2.extend(doc_chunks)
+        print(document2)
 
     combined_documents = document1 + document2
     text_splitter = RecursiveCharacterTextSplitter()
@@ -107,13 +107,6 @@ def upload_pdf():
                 "https://middleeastretailforum.com/nomination-process/",
                 "https://middleeastretailforum.com/award-categories/",
                 "https://middleeastretailforum.com/jury-2024/",
-                "https://middleeastretailforum.com/partners-2023/",
-                "https://middleeastretailforum.com/speakers-2023/",
-                "https://middleeastretailforum.com/agenda-2023/",
-                "https://middleeastretailforum.com/mrf-2023-post-show-report/",
-                "https://middleeastretailforum.com/speakers-2022/",
-                "https://middleeastretailforum.com/partners-2022/",
-                "https://middleeastretailforum.com/agenda-2022/",
                 "https://middleeastretailforum.com/companies-over-the-years/"
             ]
             document_chunks = load_document_chunks(file_path, websites)
