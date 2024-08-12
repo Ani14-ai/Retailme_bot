@@ -18,36 +18,39 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app, resources={"/api/*": {"origins": "*"}})
 
-# Global storage for vector store and initialization flag
-vector_store = None
-vector_store_ready = False
+VECTOR_STORE_PATH = "vector_store_data"
+
+def save_vector_store(vector_store, path=VECTOR_STORE_PATH):
+    """Save the vector store to disk."""
+    vector_store.save(path)
+
+def load_vector_store(path=VECTOR_STORE_PATH):
+    """Load the vector store from disk."""
+    if os.path.exists(path):
+        return Chroma.load(path)
+    return None
 
 def load_document_chunks(file_path, websites):
     """Load and split documents to handle large files and multiple websites."""
-    try:
-        loader = PyMuPDFLoader(file_path)
-        document1 = loader.load()
+    loader = PyMuPDFLoader(file_path)
+    document1 = loader.load()
 
-        document2 = []
-        for site in websites:
-            site_loader = WebBaseLoader(site)
-            doc_chunks = site_loader.load()
-            document2.extend(doc_chunks)
+    document2 = []
+    for site in websites:
+        site_loader = WebBaseLoader(site)
+        doc_chunks = site_loader.load()
+        document2.extend(doc_chunks)
 
-        combined_documents = document1 + document2
-        text_splitter = RecursiveCharacterTextSplitter()
-        document_chunks = text_splitter.split_documents(combined_documents)
-        return document_chunks
-    except Exception as e:
-        raise
+    combined_documents = document1 + document2
+    text_splitter = RecursiveCharacterTextSplitter()
+    document_chunks = text_splitter.split_documents(combined_documents)
+    return document_chunks
 
 def get_vectorstore_from_chunks(document_chunks):
     """Generate a vector store from the document chunks."""
-    try:
-        vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings())
-        return vector_store
-    except Exception as e:
-        raise
+    vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings())
+    save_vector_store(vector_store)  # Save the vector store after creation
+    return vector_store
 
 def get_context_retriever_chain(vector_store):
     llm = ChatOpenAI()
@@ -85,7 +88,7 @@ def get_response(user_input, vector_store):
 
 @app.route('/api/upload_doc', methods=['POST'])
 def upload_pdf():
-    global vector_store, vector_store_ready
+    global vector_store
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file part"}), 400
@@ -117,20 +120,22 @@ def upload_pdf():
             ]
             document_chunks = load_document_chunks(file_path, websites)
             vector_store = get_vectorstore_from_chunks(document_chunks)
-            vector_store_ready = True  # Mark vector store as ready
             os.remove(file_path)
             return jsonify({"message": "PDF processed successfully."})
     except Exception as e:
-        vector_store_ready = False  # Ensure it's not marked ready if there's an error
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ask', methods=['POST'])
 def chat():
-    global vector_store, vector_store_ready
+    global vector_store
     data = request.json
     user_input = data.get('question')
 
-    if not vector_store_ready:
+    # Load the vector store if not already loaded
+    if vector_store is None:
+        vector_store = load_vector_store()
+
+    if vector_store is None:
         return jsonify({"error": "The vector store is not ready yet. Please try again after the document is uploaded and processed."}), 503
 
     response = get_response(user_input, vector_store)
