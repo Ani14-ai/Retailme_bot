@@ -103,10 +103,25 @@ def upload_pdf():
         if file:
             file_path = f"temp_{file.filename}"
             file.save(file_path)
-            websites = [
-                "https://middleeastretailforum.com/",
-                "https://middleeastretailforum.com/download-brochure/",
-                # Add more websites as needed
+            web_urls = [
+            "https://middleeastretailforum.com/",
+            "https://middleeastretailforum.com/download-brochure/",
+            "https://middleeastretailforum.com/mrf-showreel/",
+            "https://middleeastretailforum.com/speakers-over-the-years/",
+            "https://middleeastretailforum.com/speakers-2024/",
+            "https://middleeastretailforum.com/agenda-2024/speakers-2024/",
+            "https://middleeastretailforum.com/partners-2024/",
+            "https://middleeastretailforum.com/nomination-process/",
+            "https://middleeastretailforum.com/award-categories/",
+            "https://middleeastretailforum.com/jury-2024/",
+            "https://middleeastretailforum.com/partners-2023/",
+            "https://middleeastretailforum.com/speakers-2023/",
+            "https://middleeastretailforum.com/agenda-2023/",
+            "https://middleeastretailforum.com/mrf-2023-post-show-report/",
+            "https://middleeastretailforum.com/speakers-2022/",
+            "https://middleeastretailforum.com/partners-2022/",
+            "https://middleeastretailforum.com/agenda-2022/",
+            "https://middleeastretailforum.com/companies-over-the-years/"
             ]
             # Use asynchronous processing for large document loading and vector store saving
             executor.submit(async_load_and_save, file_path, websites)
