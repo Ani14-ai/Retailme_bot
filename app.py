@@ -11,7 +11,10 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 import os
+import logging
+from concurrent.futures import ThreadPoolExecutor
 
+# Load environment variables
 load_dotenv()
 
 # Initialize the Flask app and configure CORS
@@ -21,7 +24,13 @@ CORS(app, resources={"/api/*": {"origins": "*"}})
 # Directory to persist the vector store
 VECTOR_STORE_DIR = "persistent_vector_store"
 
-# Initialize the vector store as None initially
+# Initialize logging
+logging.basicConfig(level=logging.INFO)
+
+# Initialize ThreadPoolExecutor for asynchronous processing
+executor = ThreadPoolExecutor(max_workers=4)
+
+# Global variable for the vector store
 vector_store = None
 
 def initialize_vector_store():
@@ -48,7 +57,7 @@ def load_document_chunks(file_path, websites):
         doc_chunks = site_loader.load()
         document2.extend(doc_chunks)
         combined_documents = document1 + document2
-    text_splitter = RecursiveCharacterTextSplitter()
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)  # Adjusted chunk size
     document_chunks = text_splitter.split_documents(combined_documents)
     return document_chunks
 
@@ -97,29 +106,23 @@ def upload_pdf():
             websites = [
                 "https://middleeastretailforum.com/",
                 "https://middleeastretailforum.com/download-brochure/",
-                "https://middleeastretailforum.com/mrf-showreel/",
-                "https://middleeastretailforum.com/speakers-over-the-years/",
-                "https://middleeastretailforum.com/speakers-2024/",
-                "https://middleeastretailforum.com/agenda-2024/speakers-2024/",
-                "https://middleeastretailforum.com/partners-2024/",
-                "https://middleeastretailforum.com/nomination-process/",
-                "https://middleeastretailforum.com/award-categories/",
-                "https://middleeastretailforum.com/jury-2024/",
-                "https://middleeastretailforum.com/partners-2023/",
-                "https://middleeastretailforum.com/speakers-2023/",
-                "https://middleeastretailforum.com/agenda-2023/",
-                "https://middleeastretailforum.com/mrf-2023-post-show-report/",
-                "https://middleeastretailforum.com/speakers-2022/",
-                "https://middleeastretailforum.com/partners-2022/",
-                "https://middleeastretailforum.com/agenda-2022/",
-                "https://middleeastretailforum.com/companies-over-the-years/"
+                # Add more websites as needed
             ]
-            document_chunks = load_document_chunks(file_path, websites)
-            save_vector_store(document_chunks)
-            os.remove(file_path)
-            return jsonify({"message": "PDF processed successfully."})
+            # Use asynchronous processing for large document loading and vector store saving
+            executor.submit(async_load_and_save, file_path, websites)
+            return jsonify({"message": "PDF is being processed. Please check back later."})
     except Exception as e:
+        logging.error(f"Error during PDF upload: {e}")
         return jsonify({"error": str(e)}), 500
+
+def async_load_and_save(file_path, websites):
+    try:
+        document_chunks = load_document_chunks(file_path, websites)
+        save_vector_store(document_chunks)
+        os.remove(file_path)
+        logging.info("PDF processed successfully and vector store updated.")
+    except Exception as e:
+        logging.error(f"Error during document processing: {e}")
 
 @app.route('/api/ask', methods=['POST'])
 def chat():
