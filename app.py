@@ -102,8 +102,7 @@ async def upload_pdf():
         if file:
             file_path = f"temp_{file.filename}"
             file.save(file_path)
-            
-        websites = [
+            websites = [
                 "https://middleeastretailforum.com/",
                 "https://middleeastretailforum.com/download-brochure/",
                 "https://middleeastretailforum.com/mrf-showreel/",
@@ -122,12 +121,9 @@ async def upload_pdf():
                 "https://middleeastretailforum.com/partners-2022/",
                 "https://middleeastretailforum.com/agenda-2022/",
                 "https://middleeastretailforum.com/companies-over-the-years/"
-          ]
-
-            # Process the document and websites in chunks asynchronously
+            ]
             document_chunks = await load_document_chunks(file_path, websites)
             vector_store = get_vectorstore_from_chunks(document_chunks)
-            
             os.remove(file_path)
             return jsonify({"message": "PDF processed successfully."})
     except Exception as e:
