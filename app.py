@@ -24,13 +24,6 @@ def get_vectorstore_from_pdf(file_path):
     # Define the list of websites to be loaded
     websites = [
         "https://middleeastretailforum.com/",
-        "https://middleeastretailforum.com/download-brochure/",
-        "https://middleeastretailforum.com/mrf-showreel/",
-        "https://middleeastretailforum.com/speakers-over-the-years/",
-        "https://middleeastretailforum.com/speakers-2024/",
-        "https://middleeastretailforum.com/agenda-2024/speakers-2024/",
-        "https://middleeastretailforum.com/partners-2024/",
-        "https://middleeastretailforum.com/nomination-process/",
         "https://middleeastretailforum.com/award-categories/",
         "https://middleeastretailforum.com/jury-2024/",
         "https://middleeastretailforum.com/partners-2023/",
