@@ -14,6 +14,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 
+
 # Load environment variables
 load_dotenv()
 
@@ -66,10 +67,10 @@ def load_document_chunks(file_path):
     site8 = WebBaseLoader("https://middleeastretailforum.com/agenda-2024/")
     site9 = WebBaseLoader("https://middleeastretailforum.com/award-categories/")
     site10 = WebBaseLoader("https://middleeastretailforum.com/speakers-2023/")
-    site11 = WebBaseLoader("https://middleeastretailforum.com/speakers-2022")
+    site11 = WebBaseLoader("https://middleeastretailforum.com/speakers-202")
 
     document1 = loader.load()
-    document2 = site1.load() + site2.load() + site3.load() + site4.load() + site5.load() + site6.load() + site7.load() + site8.load() + site9.load() + site10.load() + site11.load()
+    document2 = site1.load() + site2.load() + site3.load() + site4.load() + site5.load() + site6.load() + site7.load() + site8.load() + site9.load() + site10.load()
     document = document1 + document2
 
     text_splitter = RecursiveCharacterTextSplitter()  # Adjusted chunk size
@@ -90,7 +91,7 @@ def get_context_retriever_chain(session_id):
 def get_conversational_rag_chain(retriever_chain):
     llm = ChatOpenAI(model="gpt-4o-mini-2024-07-18", temperature=0.7)
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a professional and friendly AI editor at Images RetailMe, your name is Noura Adal, and your job is to provide assistance to the users who want to know about the Middle East Retail Forum taking place on 26th September 2024. You help users find information with a precise and accurate attitude. You answer their queries in complete sentences and in a precise manner, not in points and not using any bold letters, within 100 tokens, to the point and very precise and short, based on the context:\n\n{context}"),
+        ("system", "You are a professional and friendly AI editor at Images RetailMe, your name is Noura, and your job is to provide assistance to the users who want to know about the Middle East Retail Forum taking place on 26th September 2024. You help users find information with a precise and accurate attitude. You answer their queries in complete sentences and in a precise manner, not in points and not using any bold letters, within 100 tokens, to the point and very precise and short, based on the context:\n\n{context}"),
         MessagesPlaceholder(variable_name="chat_history"),
         ("user", "{input}"),
     ])
@@ -101,13 +102,21 @@ def get_response(user_input, session_id, start_time):
     retriever_chain = get_context_retriever_chain(session_id)
     conversation_rag_chain = get_conversational_rag_chain(retriever_chain)
 
+    chat_history = load_chat_history(session_id)
+    formatted_chat_history = [
+        {"role": "user", "content": entry["user_input"]} if i % 2 == 0 else {"role": "assistant", "content": entry["bot_response"]}
+        for i, entry in enumerate(chat_history)
+    ]
+
     response = conversation_rag_chain.invoke({
-        "chat_history": load_chat_history(session_id),
+        "chat_history": formatted_chat_history,
         "input": user_input
     })
 
     save_chat_history(session_id, user_input, response['answer'], start_time)
     return response['answer']
+
+
 
 def log_api_call(endpoint, status_code, response_time):
     """Log API call details to the database."""
@@ -148,7 +157,10 @@ def load_chat_history(session_id):
     cursor.execute("SELECT user_input, bot_response FROM Noura_ChatHistory WHERE session_id = ? ORDER BY timestamp ASC", (session_id,))
     chat_history = cursor.fetchall()
     connection.close()
-    return chat_history
+
+    # Convert each row to a dictionary
+    chat_history_list = [{"user_input": row.user_input, "bot_response": row.bot_response} for row in chat_history]
+    return chat_history_list
 
 @app.route('/api/upload_doc', methods=['POST'])
 def upload_pdf():
@@ -211,4 +223,4 @@ def chat():
 
 if __name__ == "__main__":
     initialize_vector_store()
-    app.run(debug=False)
+    app.run(debug=True)
