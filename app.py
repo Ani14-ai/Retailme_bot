@@ -59,7 +59,8 @@ def load_document_chunks(file_path):
     site7= WebBaseLoader("https://middleeastretailforum.com/about-images-group/")
     site8= WebBaseLoader("https://middleeastretailforum.com/agenda-2024/")
     site9= WebBaseLoader("https://middleeastretailforum.com/award-categories/")
-    site10= WebBaseLoader("https://middleeastretailforum.com/speakers-2023/")    
+    site10= WebBaseLoader("https://middleeastretailforum.com/speakers-2023/")
+    site11= WebBaseLoader("https://middleeastretailforum.com/speakers-202")
     document1 = loader.load()
     document2 = site1.load() + site2.load() + site3.load() + site4.load() + site5.load() + site6.load() + site7.load() + site8.load() + site9.load() + site10.load()
     document = document1 + document2
