@@ -198,6 +198,7 @@ def async_load_and_save(file_path):
 
 @app.route('/api/ask', methods=['POST'])
 def chat():
+    global vector_store
     start_time = datetime.now(UAE_TZ)
     try:
         api_key = request.headers.get('Authorization')
@@ -208,9 +209,14 @@ def chat():
         data = request.get_json()
         user_input = data.get('user_input')
         session_id = data.get('session_id')
+        if vector_store is None:
+            initialize_vector_store()
+        if vector_store is None:
+            return jsonify({"error": "The vector store is not ready yet. Please upload a document first."}), 503
         if not user_input or not session_id:
             log_api_call('/api/ask', 400, (datetime.now(UAE_TZ) - start_time).total_seconds())
             return jsonify({"error": "Missing input or session ID"}), 400
+            
 
         response = get_response(user_input, session_id, start_time)
         log_api_call('/api/ask', 200, (datetime.now(UAE_TZ) - start_time).total_seconds())
