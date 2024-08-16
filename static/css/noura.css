@@ -1,16 +1,3 @@
-
-body {
-    font-family: Arial, sans-serif;
-    background-color: #f0f0f0;
-    margin: 0;
-    padding: 0;
-    height: 100vh;
-    display: flex;
-    justify-content: flex-end;
-    align-items: flex-end;
-    background-image: url(../Assets/images/MRF.png);
-    
-}
 .user-chat-message-container {
     display: flex;
     justify-content: flex-end;
