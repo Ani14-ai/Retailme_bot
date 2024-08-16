@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Window</title>
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../Static/css/noura.css">
+  
+ 
+</head>
+<body>
+
+    <div class="avatar-caption-container" onclick="toggleChat()">
+        <div class="avatar-button">
+            <img src="../Static/Assets/images/listening-jpg.jpg" alt="Noura Avatar">
+        </div>
+        <div class="avatar-caption">Chat with Noura</div>
+    </div>
+
+    <div class="chatbot-container" id="chatbot">
+        <div class="header">
+            <div class="header-avatar" id="noura-avatar">
+                <img src="../Static/Assets/images/listening-jpg.jpg" alt="Listening Avatar" class="active">
+                <img src="../Static/Assets/images/talking-400.gif" alt="Talking Avatar">
+            </div>
+            <div class="close-button" onclick="toggleChat()">×</div>
+            <div class="sound-control" onclick="toggleSound()">🔊</div>
+            
+        </div>
+        <div class="chat-history" id="chat-history"></div>
+        <div class="loading-spinner" id="loading-spinner"></div>
+        <div class="input-area">
+            <button class="mic-button" onclick="startListening()"><i class="fas fa-microphone"></i></button>
+            <input type="text" placeholder="Type a message..." id="chat-input" onkeydown="handleEnter(event)">
+            <button class="send-button" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+  <script src="../Static/js/nourabot.js"></script>
+   
+</body>
+</html>

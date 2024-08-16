@@ -1,0 +1,390 @@
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+    background-image: url(../Assets/images/MRF.png);
+    
+}
+.user-chat-message-container {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    justify-content: flex-start;
+    flex-direction: row-reverse;
+}
+
+.noura-chat-message-container {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.user-icon,
+.noura-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+   
+    display: flex;
+    justify-content: center;
+    
+}
+
+
+.user-icon {
+    margin-left: 10px; /* Space between user message and icon */
+}
+
+.noura-icon {
+    margin-right: 10px; /* Space between Noura message and icon */
+}
+
+.user-message {
+    background-color: #f3f0f0;
+    color: #0c0b4d;
+    text-align: right;
+    padding: 10px;
+    margin: 10px;
+    border-radius: 10px;
+    max-width: 70%;
+    order: 1;
+}
+
+.noura-message {
+    background-color: #d4c8eb;
+    color: #0c0b4d;
+    text-align: left;
+    padding: 10px;
+    margin: 10px;
+    border-radius: 10px;
+    max-width: 70%;
+    order: 1;
+}
+.chatbot-container {
+    width: 350px;
+    border-radius: 15px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    margin: 20px;
+    transform: translateY(100%);
+    transition: transform 0.3s ease-in-out;
+    visibility: hidden;
+    background: linear-gradient(to bottom, #85207d 0%, #30126bc4 30%, #ffffff 100%);
+background-size: 100% 200%; /* Maintain this for positioning if needed */
+background-position: top;
+}
+
+
+.avatar-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background-color: #fff;
+    border: 3px solid #181142;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+.chatbot-container.expanded {
+    z-index: 2000; /* High enough to be above other elements */
+}
+
+.avatar-caption-container.behind {
+    z-index: 100; /* Lower than the chat window */
+}
+
+.avatar-caption-container {
+    z-index: 10;
+}
+
+.chatbot-container.expanded ~ .avatar-caption-container {
+    z-index: 0;
+}
+
+.twwr-container.twwr-floating {
+    position: fixed;
+    z-index: 9999;
+    display: block;
+    width: auto;
+    padding-top: 0;
+}
+
+.avatar-caption-container {
+    position: fixed;
+    bottom: 30px;
+    right: 65px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.chatbot-container.expanded ~ .avatar-caption-container {
+    z-index: 0;
+}
+
+
+.avatar-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.avatar-caption {
+    margin-left: 15px;
+    font-size: 18px;
+    font-weight: 500;
+    color: #ffffff;
+    background-color: #181142;
+    padding: 10px 20px;
+    border-radius: 20px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease-in-out;
+}
+.avatar-button img {
+    width: 55px;
+    height: 55px;
+    object-fit: cover;
+}
+
+.header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    background: none;
+   
+    position: relative;
+}
+
+.header-avatar {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    overflow: hidden;
+    position: relative;
+}
+
+.header-avatar img {
+    display: none;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.header-avatar img.active {
+    display: block;
+}
+
+.chat-history {
+    padding: 20px;
+    height: 200px;
+    overflow-y: auto;
+    background:none;
+    color: #333;
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+.input-area {
+    display: flex;
+    align-items: center;
+    background-color: #fff;
+    border-top: 1px solid #eee;
+    padding: 10px;
+    justify-content: space-between;
+}
+
+.input-area input {
+    flex-grow: 1;
+    margin: 0 10px;
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-radius: 30px;
+    font-size: 16px;
+    outline: none;
+}
+
+.input-area .mic-button,
+.input-area .send-button {
+    background-color: #2a1554;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    padding: 10px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.input-area .mic-button:hover,
+.input-area .send-button:hover {
+    background-color: #5e0ca8;
+}
+
+.sound-control {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    cursor: pointer;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+.close-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 18px;
+    cursor: pointer;
+    color: #fdfcfd;
+    transition: color 0.3s ease;
+    background-color: rgba(0, 0, 0, 0.5);
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    padding: 5px;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+}
+
+.close-button:hover {
+    color: #4a00e0;
+}
+
+.expanded {
+    transform: translateY(0);
+    visibility: visible;
+}
+
+.chat-message {
+    padding: 10px;
+    margin: 10px;
+    border-radius: 10px;
+    max-width: 80%;
+    display: inline-block;
+}
+
+.user-message {
+position: relative;
+background-color: #f3f0f0;
+color: #0c0b4d;
+text-align: right;
+align-self: flex-end;
+margin-left: auto;
+padding: 10px;
+border-radius: 10px;
+max-width: 80%;
+display: inline-block;
+}
+
+.user-message::after {
+content: '';
+position: absolute;
+right: -20px; /* Adjust to your needs */
+top: 5px; /* Align with the top of the bubble */
+width: 25px; /* Adjust the width to change triangle size */
+height: 25px; /* Adjust the height to change triangle size */
+background-color: #f3f0f0;
+clip-path: polygon(100% 0, 0 100%, 0 0); /* Create a right-angle triangle */
+}
+
+.noura-message {
+position: relative;
+background-color: #d4c8eb;
+color: #0c0b4d;
+text-align: left;
+align-self: flex-start;
+margin-right: auto;
+padding: 10px;
+border-radius: 10px;
+max-width: 80%;
+display: inline-block;
+}
+
+.noura-message::after {
+content: '';
+position: absolute;
+left: -20px; /* Adjust to your needs */
+top: 5px; /* Align with the top of the bubble */
+width: 25px; /* Adjust the width to change triangle size */
+height: 25px; /* Adjust the height to change triangle size */
+background-color: #d4c8eb;
+clip-path: polygon(0 0, 100% 100%, 100% 0); /* Create a right-angle triangle */
+}
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #0c0b4d;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+    display: none;
+    margin-bottom: 40px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+/* For WebKit browsers (Chrome, Safari, etc.) */
+.chat-history::-webkit-scrollbar {
+width: 8px; /* Thinner scrollbar */
+}
+
+.chat-history::-webkit-scrollbar-track {
+background: transparent; /* Transparent background */
+border-radius: 10px; /* Slightly round the track edges */
+border: 1px solid #cccccc; /* Thin border around the track */
+}
+
+.chat-history::-webkit-scrollbar-thumb {
+background-color: #cccccc; /* Light grey color for the scrollbar thumb */
+border-radius: 6px; /* Slightly rounded corners for the thumb */
+border: none; /* No additional border */
+}
+
+.chat-history::-webkit-scrollbar-thumb:hover {
+background-color: #b0b0b0; /* Darker grey on hover */
+}
+
+/* Hide the scrollbar arrows */
+.chat-history::-webkit-scrollbar-button {
+display: none; /* Hides the up/down or left/right arrow buttons */
+}
+
+/* For Firefox */
+.chat-history {
+scrollbar-width: thin; /* Makes the scrollbar thinner */
+scrollbar-color: #cccccc transparent; /* Light grey thumb, transparent track */
+}
+
