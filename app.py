@@ -165,7 +165,7 @@ def load_chat_history(session_id):
 
 @app.route('/')
 def home():
-    return render_template('Middle East Retail Forum _ Conference _ Retail Event & Summit.html')
+    return render_template('index.html')
 
 @app.route('/<path:path>')
 def serve_page(path):
