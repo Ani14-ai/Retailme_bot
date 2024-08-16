@@ -30,7 +30,7 @@ function sendMessage() {
 
         const userIcon = document.createElement('div');
         userIcon.classList.add('user-icon');
-        userIcon.innerHTML = '<img src="../Static/Assets/images/user-icon.png" alt="User Icon">';
+        userIcon.innerHTML = '<img src="../static/Assets/images/user-icon.png" alt="User Icon">';
 
         const userMessage = document.createElement('div');
         userMessage.classList.add('chat-message', 'user-message');
@@ -80,7 +80,7 @@ function sendMessageToApi(message) {
 
             const nouraIcon = document.createElement('div');
             nouraIcon.classList.add('noura-icon');
-            nouraIcon.innerHTML = '<img src="../Static/Assets/images/noura-icon.png" alt="Noura Icon">';
+            nouraIcon.innerHTML = '<img src="../static/Assets/images/noura-icon.png" alt="Noura Icon">';
 
             const responseMessage = document.createElement('div');
             responseMessage.classList.add('chat-message', 'noura-message');
