@@ -78,7 +78,12 @@ def validate_session():
 def register_user():
     """Register a new user temporarily and generate an OTP for email validation."""
     data = request.json
-    email = data['email']
+    name = data.get('name')
+    phone_number = data.get('phone_number')
+    email = data.get('email')
+
+    if not name or not phone_number or not email:
+        return jsonify({"error": "Name, phone number, and email are required."}), 400
 
     try:
         connection = pyodbc.connect(DB_CONNECTION_STRING)
@@ -110,7 +115,7 @@ def register_user():
 
         # Send OTP Email
         otp_email_body = f"""
-        Dear User,
+        Dear {name},
 
         Please use the following OTP to validate your email: {otp}.
         This OTP is valid for 5 minutes.
