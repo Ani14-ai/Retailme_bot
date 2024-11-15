@@ -57,20 +57,14 @@ def save_vector_store(document_chunks):
 def load_document_chunks(file_path):
     """Load and split documents to handle large files and multiple websites."""
     loader = PyMuPDFLoader(file_path)
-    site1 = WebBaseLoader("https://middleeastretailforum.com/")
-    site2 = WebBaseLoader("https://middleeastretailforum.com/speakers-2024/")
-    site3 = WebBaseLoader("https://middleeastretailforum.com/partners-2024/")
-    site4 = WebBaseLoader("https://middleeastretailforum.com/awards/")
-    site5 = WebBaseLoader("https://middleeastretailforum.com/nomination-process/")
-    site6 = WebBaseLoader("https://middleeastretailforum.com/jury-2024/")
-    site7 = WebBaseLoader("https://middleeastretailforum.com/about-images-group/")
-    site8 = WebBaseLoader("https://middleeastretailforum.com/agenda-2024/")
-    site9 = WebBaseLoader("https://middleeastretailforum.com/award-categories/")
-    site10 = WebBaseLoader("https://middleeastretailforum.com/speakers-2023/")
-    site11 = WebBaseLoader("https://middleeastretailforum.com/speakers-202")
+    site1 = WebBaseLoader("https://www.visitdubai.com/en/business-in-dubai/industries/retail")
+    site2 = WebBaseLoader("https://www.khaleejtimes.com/business/retail")
+    site3 = WebBaseLoader("https://gulfnews.com/business/retail")
+    site4 = WebBaseLoader("https://www.retail-insight-network.com/")
+    site5 = WebBaseLoader("https://saudiretailforum.com/")
 
     document1 = loader.load()
-    document2 = site1.load() + site2.load() + site3.load() + site4.load() + site5.load() + site6.load() + site7.load() + site8.load() + site9.load() + site10.load()
+    document2 = site1.load() + site2.load() + site3.load() + site4.load() + site5.load() 
     document = document1 + document2
 
     text_splitter = RecursiveCharacterTextSplitter()  # Adjusted chunk size
@@ -91,7 +85,7 @@ def get_context_retriever_chain(session_id):
 def get_conversational_rag_chain(retriever_chain):
     llm = ChatOpenAI(model="gpt-4o-mini-2024-07-18", temperature=0.7)
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are Noura Adal, a helpful and knowledgeable AI assistant at Retailopedia. Your role is to guide users through the platform, offering clear, concise, and accurate information about retail trends, companies, professionals, and services available on Retailopedia. You answer queries in complete sentences, without using points or bold letters, staying within 100 tokens, and always providing to-the-point responses. You assist users in navigating content and subscription options while ensuring a friendly and professional tone, based on the context:\n\n{context}"),
+        ("system", "You are GeoBot, an AI assistant for geospatial analytics and insights in the Middle East and Dubai. Your role is to guide users through geospatial trends, retail data, and location insights, offering clear and accurate information. Respond within 100 tokens, always maintaining a professional tone. Provide precise and actionable insights based on the context:\n\n{context}"),
         MessagesPlaceholder(variable_name="chat_history"),
         ("user", "{input}"),
     ])
@@ -117,13 +111,12 @@ def get_response(user_input, session_id, start_time):
     return response['answer']
 
 
-
 def log_api_call(endpoint, status_code, response_time):
     """Log API call details to the database."""
     connection = pyodbc.connect(DB_CONNECTION_STRING)
     cursor = connection.cursor()
     cursor.execute(
-        "INSERT INTO APILog (api_endpoint, status_code, response_time, timestamp) VALUES (?, ?, ?, ?)",
+        "INSERT INTO tb_Geobot_APILog (api_endpoint, status_code, response_time, timestamp) VALUES (?, ?, ?, ?)",
         (endpoint, status_code, response_time, datetime.now(UAE_TZ))
     )
     connection.commit()
@@ -133,7 +126,7 @@ def authenticate_api_key(api_key):
     """Check if the provided API key is valid and active."""
     connection = pyodbc.connect(DB_CONNECTION_STRING)
     cursor = connection.cursor()
-    cursor.execute("SELECT is_active FROM APIKeys WHERE api_key = ?", (api_key,))
+    cursor.execute("SELECT is_active FROM tb_Geobot_APIkey WHERE api_key = ?", (api_key,))
     result = cursor.fetchone()
     connection.close()
     return result and result[0]
@@ -144,7 +137,7 @@ def save_chat_history(session_id, user_input, bot_response, start_time):
     cursor = connection.cursor()
     response_time = (datetime.now(UAE_TZ) - start_time).total_seconds()
     cursor.execute(
-        "INSERT INTO Noura_ChatHistory (session_id, user_input, bot_response, response_time, timestamp) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO tb_Geobot (session_id, user_input, bot_response, response_time, timestamp) VALUES (?, ?, ?, ?, ?)",
         (session_id, user_input, bot_response, response_time, datetime.now(UAE_TZ))
     )
     connection.commit()
@@ -154,22 +147,13 @@ def load_chat_history(session_id):
     """Load chat history for a given session ID."""
     connection = pyodbc.connect(DB_CONNECTION_STRING)
     cursor = connection.cursor()
-    cursor.execute("SELECT user_input, bot_response FROM Noura_ChatHistory WHERE session_id = ? ORDER BY timestamp ASC", (session_id,))
+    cursor.execute("SELECT user_input, bot_response FROM tb_Geobot WHERE session_id = ? ORDER BY timestamp ASC", (session_id,))
     chat_history = cursor.fetchall()
     connection.close()
 
     # Convert each row to a dictionary
     chat_history_list = [{"user_input": row.user_input, "bot_response": row.bot_response} for row in chat_history]
     return chat_history_list
-
-
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-@app.route('/<path:path>')
-def serve_page(path):
-    return render_template(path)
 
 @app.route('/api/upload_doc', methods=['POST'])
 def upload_pdf():
@@ -189,11 +173,11 @@ def upload_pdf():
             file.save(file_path)
             executor.submit(async_load_and_save, file_path)
             log_api_call('/api/upload_doc', 200, (datetime.now(UAE_TZ) - start_time).total_seconds())
-            return jsonify({"message": "PDF is being processed. Please check back later."})
+            return jsonify({"message": "Document is being processed. Please check back later."})
 
     except Exception as e:
         log_api_call('/api/upload_doc', 500, (datetime.now(UAE_TZ) - start_time).total_seconds())
-        logging.error(f"Error during PDF upload: {e}")
+        logging.error(f"Error during document upload: {e}")
         return jsonify({"error": str(e)}), 500
 
 def async_load_and_save(file_path):
@@ -201,7 +185,7 @@ def async_load_and_save(file_path):
         document_chunks = load_document_chunks(file_path)
         save_vector_store(document_chunks)
         os.remove(file_path)
-        logging.info("PDF processed successfully and vector store updated.")
+        logging.info("Document processed successfully and vector store updated.")
     except Exception as e:
         logging.error(f"Error during document processing: {e}")
 
@@ -225,7 +209,6 @@ def chat():
         if not user_input or not session_id:
             log_api_call('/api/ask', 400, (datetime.now(UAE_TZ) - start_time).total_seconds())
             return jsonify({"error": "Missing input or session ID"}), 400
-            
 
         response = get_response(user_input, session_id, start_time)
         log_api_call('/api/ask', 200, (datetime.now(UAE_TZ) - start_time).total_seconds())
