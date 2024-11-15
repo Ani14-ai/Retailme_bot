@@ -140,6 +140,9 @@ def validate_otp():
     name = data['name']
     phone_number = data['phone_number']
 
+    if not name or not phone_number or not email or not otp:
+        return jsonify({"error": "Name, phone number, email, and OTP are required."}), 400
+
     try:
         connection = pyodbc.connect(DB_CONNECTION_STRING)
         cursor = connection.cursor()
@@ -199,6 +202,22 @@ def validate_otp():
         session['user_id'] = user_id
         session['session_token'] = str(uuid.uuid4())
 
+        # Send Welcome Email
+        welcome_email_body = f"""
+        Dear {name},
+
+        Welcome to GeoPlatform!
+
+        Your temporary license key is: {license_key}
+
+        This key is valid for 7 days, and you have been credited with 700 credits to explore our platform. 
+        Discover the powerful insights and tools designed to help you optimize your business.
+
+        Best Regards,
+        GeoPlatform Team
+        """
+        send_email(email, "Welcome to GeoPlatform", welcome_email_body)
+
         return jsonify({
             "message": "Email validated successfully. User created.",
             "user_id": user_id,
@@ -208,6 +227,7 @@ def validate_otp():
     except Exception as e:
         logging.error(f"Error during OTP validation: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/api/resend-otp', methods=['POST'])
