@@ -8,6 +8,7 @@ import bcrypt
 import uuid
 import random
 import requests
+import jwt
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor
 from langchain_community.document_loaders import WebBaseLoader, PyMuPDFLoader
@@ -51,6 +52,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 # Global variable for the vector store
 vector_store = None
 
+# Helper Functions
 def send_email(recipient, subject, body):
     """Send email using the provided email API."""
     try:
@@ -67,23 +69,50 @@ def send_email(recipient, subject, body):
         logging.error(f"Failed to send email to {recipient}: {e}")
 
 
-def validate_session():
-    """Middleware to validate the session token."""
-    session_token = request.headers.get('Authorization')
-    if not session_token or session.get('session_token') != session_token:
-        return jsonify({"error": "Unauthorized. Please log in."}), 401
+def generate_jwt(user_id):
+    """Generate a JWT token."""
+    payload = {
+        'user_id': user_id,
+        'exp': datetime.utcnow() + timedelta(hours=1)  # Token expires in 1 hour
+    }
+    return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
 
 
+def validate_jwt(token):
+    """Validate a JWT token."""
+    try:
+        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        return payload['user_id']
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+
+def authenticate():
+    """JWT Middleware for Protected Routes."""
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({"error": "Unauthorized. Please provide a valid token."}), 401
+
+    user_id = validate_jwt(token)
+    if not user_id:
+        return jsonify({"error": "Unauthorized. Token is invalid or expired."}), 401
+
+    return user_id
+
+
+# APIs
 @app.route('/api/register', methods=['POST'])
 def register_user():
-    """Register a new user temporarily and generate an OTP for email validation."""
+    """Register a new user and generate an OTP for email validation."""
     data = request.json
     name = data.get('name')
-    phone_number = data.get('phone_number')
     email = data.get('email')
+    phone_number = data.get('phone_number')
 
-    if not name or not phone_number or not email:
-        return jsonify({"error": "Name, phone number, and email are required."}), 400
+    if not name or not email or not phone_number:
+        return jsonify({"error": "Name, email, and phone number are required."}), 400
 
     try:
         connection = pyodbc.connect(DB_CONNECTION_STRING)
@@ -95,35 +124,33 @@ def register_user():
         if user_exists:
             return jsonify({"error": "User with this email already exists."}), 400
 
-        # Validate email domain
-        domain = email.split('@')[-1]
-        if domain in [
-            "gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com"
-        ]:
-            return jsonify({"error": "Personal email addresses are not allowed."}), 400
-
         # Generate OTP
         otp = str(random.randint(100000, 999999))
         otp_expiry = datetime.now() + timedelta(minutes=5)
 
         # Insert OTP into tb_UserOTP
-        cursor.execute("""
-            INSERT INTO tb_UserOTP (email, otp, expiry_at)
-            VALUES (?, ?, ?)
-        """, (email, otp, otp_expiry))
+        cursor.execute("INSERT INTO tb_UserOTP (email, otp, expiry_at) VALUES (?, ?, ?)", (email, otp, otp_expiry))
         connection.commit()
 
         # Send OTP Email
         otp_email_body = f"""
-        Dear {name},
-
-        Please use the following OTP to validate your email: {otp}.
-        This OTP is valid for 5 minutes.
-
-        Best Regards,
-        GeoPlatform Team
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Your OTP Code</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; }}
+                .otp {{ color: #2c7ae8; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <p>Dear {name},</p>
+            <p>Your OTP code is <span class="otp">{otp}</span>. It is valid for 5 minutes.</p>
+            <p>Best regards,<br>Team WaysAhead</p>
+        </body>
+        </html>
         """
-        send_email(email, "Email Validation OTP", otp_email_body)
+        send_email(email, "Your OTP Code", otp_email_body)
 
         return jsonify({"message": "OTP sent successfully. Check your email for validation."}), 200
     except Exception as e:
@@ -133,24 +160,24 @@ def register_user():
 
 @app.route('/api/validate-otp', methods=['POST'])
 def validate_otp():
-    """Validate the OTP and create the user if successful."""
+    """Validate the OTP and create the user."""
     data = request.json
-    email = data['email']
-    otp = data['otp']
-    name = data['name']
-    phone_number = data['phone_number']
+    email = data.get('email')
+    otp = data.get('otp')
+    name = data.get('name')
+    phone_number = data.get('phone_number')
 
-    if not name or not phone_number or not email or not otp:
-        return jsonify({"error": "Name, phone number, email, and OTP are required."}), 400
+    if not email or not otp or not name or not phone_number:
+        return jsonify({"error": "Email, OTP, name, and phone number are required."}), 400
 
     try:
         connection = pyodbc.connect(DB_CONNECTION_STRING)
         cursor = connection.cursor()
 
-        # Fetch OTP details
+        # Validate OTP
         cursor.execute("""
-            SELECT otp_id, otp, expiry_at, is_used FROM tb_UserOTP
-            WHERE email = ? AND otp = ? AND user_id IS NULL
+            SELECT otp_id, expiry_at, is_used FROM tb_UserOTP
+            WHERE email = ? AND otp = ? AND is_deleted = 0
         """, (email, otp))
         otp_data = cursor.fetchone()
 
@@ -162,164 +189,107 @@ def validate_otp():
             return jsonify({"error": "OTP expired."}), 400
 
         # Mark OTP as used
-        otp_id = otp_data[0]
-        cursor.execute("""
-            UPDATE tb_UserOTP SET is_used = 1, updated_at = GETDATE()
-            WHERE otp_id = ?
-        """, (otp_id,))
+        otp_id = otp_data.otp_id
+        cursor.execute("UPDATE tb_UserOTP SET is_used = 1 WHERE otp_id = ?", (otp_id,))
 
-        # Create user in tb_MS_User
+        # Create User
         license_key = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=6))
         license_expiry_date = datetime.now() + timedelta(days=7)
-
         cursor.execute("""
             INSERT INTO tb_MS_User (name, email, phone_number, temporary_license_key, license_expiry_date)
             VALUES (?, ?, ?, ?, ?)
         """, (name, email, phone_number, license_key, license_expiry_date))
-
-        # Fetch user_id of the newly created user
-        cursor.execute("SELECT user_id FROM tb_MS_User WHERE email = ?", (email,))
-        user_id = cursor.fetchone()[0]
-
-        if not user_id:
-            return jsonify({"error": "Failed to retrieve user ID after creation."}), 500
-
-        # Update user_id in tb_UserOTP
-        cursor.execute("""
-            UPDATE tb_UserOTP SET user_id = ?, updated_at = GETDATE()
-            WHERE otp_id = ?
-        """, (user_id, otp_id))
-
-        # Insert initial credits into tb_UserCredits
-        cursor.execute("""
-            INSERT INTO tb_UserCredits (user_id, available_credits, credit_reset_date)
-            VALUES (?, ?, GETDATE())
-        """, (user_id, 700))
-
         connection.commit()
-
-        # Create a session for the user
-        session['user_id'] = user_id
-        session['session_token'] = str(uuid.uuid4())
 
         # Send Welcome Email
         welcome_email_body = f"""
-        Dear {name},
-
-        Welcome to GeoPlatform!
-
-        Your temporary license key is: {license_key}
-
-        This key is valid for 7 days, and you have been credited with 700 credits to explore our platform. 
-        Discover the powerful insights and tools designed to help you optimize your business.
-
-        Best Regards,
-        GeoPlatform Team
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Welcome to WaysAhead</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; }}
+                .license-key {{ color: #2c7ae8; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <p>Dear {name},</p>
+            <p>Welcome to GeoPlatform! Your temporary license key is <span class="license-key">{license_key}</span>.</p>
+            <p>This key is valid for 7 days. Enjoy exploring the platform!</p>
+            <p>Best regards,<br>Team WaysAhead</p>
+        </body>
+        </html>
         """
         send_email(email, "Welcome to GeoPlatform", welcome_email_body)
 
-        return jsonify({
-            "message": "Email validated successfully. User created.",
-            "user_id": user_id,
-            "license_key": license_key,
-            "session_token": session['session_token']
-        }), 200
+        return jsonify({"message": "User created successfully. Welcome email sent.", "license_key": license_key}), 200
     except Exception as e:
         logging.error(f"Error during OTP validation: {e}")
         return jsonify({"error": str(e)}), 500
 
 
-
-@app.route('/api/resend-otp', methods=['POST'])
-def resend_otp():
-    """Resend an OTP for email validation."""
+@app.route('/api/set-password', methods=['POST'])
+def set_password():
+    """Set a password for the user."""
     data = request.json
-    email = data['email']
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email or not password:
+        return jsonify({"error": "Email and password are required."}), 400
 
     try:
         connection = pyodbc.connect(DB_CONNECTION_STRING)
         cursor = connection.cursor()
 
-        # Mark existing OTPs as deleted
-        cursor.execute("""
-            UPDATE tb_UserOTP SET is_deleted = 1, updated_at = GETDATE()
-            WHERE email = ? AND user_id IS NULL AND is_deleted = 0
-        """, (email,))
+        # Check if the user exists
+        cursor.execute("SELECT user_id FROM tb_MS_User WHERE email = ?", (email,))
+        user = cursor.fetchone()
+        if not user:
+            return jsonify({"error": "User not found. Please register first."}), 404
 
-        # Generate a new OTP
-        otp = str(random.randint(100000, 999999))
-        otp_expiry = datetime.now() + timedelta(minutes=5)
+        # Hash the password
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-        # Insert the new OTP
-        cursor.execute("""
-            INSERT INTO tb_UserOTP (email, otp, expiry_at)
-            VALUES (?, ?, ?)
-        """, (email, otp, otp_expiry))
+        # Update the password
+        cursor.execute("UPDATE tb_MS_User SET password_hash = ? WHERE email = ?", (password_hash, email))
         connection.commit()
 
-        # Send OTP email
-        otp_email_body = f"""
-        Dear User,
-        Your new OTP for email validation is: {otp}.
-        This OTP is valid for 5 minutes.
-        """
-        send_email(email, "Resend OTP", otp_email_body)
-
-        return jsonify({"message": "OTP resent successfully. Check your email."}), 200
+        return jsonify({"message": "Password set successfully."}), 200
     except Exception as e:
-        logging.error(f"Error during OTP resend: {e}")
+        logging.error(f"Error during password setting: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    """Authenticate the user and start a session."""
+    """Authenticate user and generate JWT."""
     data = request.json
-    email = data['email']
-    password = data['password']
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email or not password:
+        return jsonify({"error": "Email and password are required."}), 400
 
     try:
         connection = pyodbc.connect(DB_CONNECTION_STRING)
         cursor = connection.cursor()
 
-        # Fetch user details
-        cursor.execute("""
-            SELECT user_id, password_hash, temporary_license_key, license_expiry_date
-            FROM tb_MS_User
-            WHERE email = ?
-        """, (email,))
+        # Fetch user
+        cursor.execute("SELECT user_id, password_hash, temporary_license_key FROM tb_MS_User WHERE email = ?", (email,))
         user = cursor.fetchone()
 
         if not user:
             return jsonify({"error": "Invalid email."}), 401
-
         if not bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8')):
             return jsonify({"error": "Invalid password."}), 401
 
-        if user.license_expiry_date < datetime.now():
-            return jsonify({"error": "License key expired. Please renew your subscription."}), 403
-
-        # Create session
-        session['user_id'] = user.user_id
-        session['session_token'] = str(uuid.uuid4())
-
-        return jsonify({
-            "message": "Login successful.",
-            "license_key": user.temporary_license_key,
-            "session_token": session['session_token']
-        }), 200
+        # Generate JWT
+        token = generate_jwt(user.user_id)
+        return jsonify({"message": "Login successful.", "token": token, "license_key": user.temporary_license_key}), 200
     except Exception as e:
         logging.error(f"Error during login: {e}")
         return jsonify({"error": str(e)}), 500
-
-
-@app.route('/api/logout', methods=['POST'])
-def logout():
-    """Log out the user and clear the session."""
-    session.clear()
-    return jsonify({"message": "Logged out successfully."}), 200
-
-
 
 
 def initialize_vector_store():
