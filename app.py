@@ -9,6 +9,7 @@ import uuid
 import random
 import requests
 import jwt
+from openai import OpenAI
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor
 from langchain_community.document_loaders import WebBaseLoader, PyMuPDFLoader
@@ -23,11 +24,9 @@ from flask_session import Session
 
 # Load environment variables
 load_dotenv()
-
-# Initialize the Flask app and configure CORS
+client = OpenAI(api_key= os.getenv("OPENAI_API_KEY"))
 app = Flask(__name__)
 CORS(app, resources={"/api/*": {"origins": "*"}})
-
 # UAE timezone setup
 UAE_TZ = timezone(timedelta(hours=4))
 
@@ -51,6 +50,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 
 # Global variable for the vector store
 vector_store = None
+
 
 # Helper Functions
 def send_email(recipient, subject, body):
@@ -103,6 +103,31 @@ def authenticate():
 
 
 # APIs
+@app.route('/api/verify-token', methods=['POST'])
+def verify_token():
+    """
+    Verify the validity of a JWT token.
+    """
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({"error": "Missing JWT token in Authorization header."}), 401
+
+    try:
+        # Decode and validate the token
+        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        user_id = payload.get('user_id')
+        exp_time = datetime.utcfromtimestamp(payload['exp']).strftime('%Y-%m-%d %H:%M:%S')
+        return jsonify({
+            "message": "Token is valid.",
+            "user_id": user_id,
+            "expires_at": exp_time
+        }), 200
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "JWT token has expired. Please log in again."}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid JWT token."}), 401
+
+
 @app.route('/api/register', methods=['POST'])
 def register_user():
     """Register a new user and generate an OTP for email validation."""
@@ -200,6 +225,8 @@ def validate_otp():
             VALUES (?, ?, ?, ?, ?)
         """, (name, email, phone_number, license_key, license_expiry_date))
         connection.commit()
+        cursor.execute("SELECT user_id FROM tb_MS_User WHERE email = ?", (email,))
+        user_id = cursor.fetchone()[0]
 
         # Send Welcome Email
         welcome_email_body = f"""
@@ -220,9 +247,9 @@ def validate_otp():
         </body>
         </html>
         """
-        send_email(email, "Welcome to GeoPlatform", welcome_email_body)
+        send_email(email, "Welcome to Storetail", welcome_email_body)
 
-        return jsonify({"message": "User created successfully. Welcome email sent.", "license_key": license_key}), 200
+        return jsonify({"message": "Registration Successful", "license_key": license_key, "user_id": user_id}), 200
     except Exception as e:
         logging.error(f"Error during OTP validation: {e}")
         return jsonify({"error": str(e)}), 500
@@ -232,10 +259,10 @@ def validate_otp():
 def set_password():
     """Set a password for the user."""
     data = request.json
-    email = data.get('email')
+    user_id = data.get('user_id')
     password = data.get('password')
 
-    if not email or not password:
+    if not user_id or not password:
         return jsonify({"error": "Email and password are required."}), 400
 
     try:
@@ -243,23 +270,22 @@ def set_password():
         cursor = connection.cursor()
 
         # Check if the user exists
-        cursor.execute("SELECT user_id FROM tb_MS_User WHERE email = ?", (email,))
-        user = cursor.fetchone()
-        if not user:
+        cursor.execute("SELECT email FROM tb_MS_User WHERE user_id = ?", (user_id,))
+        email = cursor.fetchone()
+        if not email:
             return jsonify({"error": "User not found. Please register first."}), 404
 
         # Hash the password
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
         # Update the password
-        cursor.execute("UPDATE tb_MS_User SET password_hash = ? WHERE email = ?", (password_hash, email))
+        cursor.execute("UPDATE tb_MS_User SET password_hash = ? WHERE user_id = ?", (password_hash, user_id))
         connection.commit()
 
         return jsonify({"message": "Password set successfully."}), 200
     except Exception as e:
         logging.error(f"Error during password setting: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -286,11 +312,101 @@ def login():
 
         # Generate JWT
         token = generate_jwt(user.user_id)
-        return jsonify({"message": "Login successful.", "token": token, "license_key": user.temporary_license_key}), 200
+        return jsonify({"message": "Login successful.", "token": token, "license_key": user.temporary_license_key, "user_id": user.user_id}), 200
     except Exception as e:
         logging.error(f"Error during login: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/api/preferences', methods=['POST'])
+def save_preferences():
+    """
+    Save user preferences, generate insights using OpenAI, and send a personalized email.
+    """
+    data = request.json
+    user_id = data['user_id']
+    preferences = {
+        "business_type": data['business_type'],
+        "weekly_footfall": data['estimated_weekly_footfall'],
+        "monthly_revenue": data['estimated_monthly_revenue'],
+        "transaction_value": data['avg_transaction_value'],
+        "audience_age": data['target_audience_age'],
+        "audience_category": data['target_audience_category']
+    }
+
+    if not user_id or not preferences:
+        return jsonify({"error": "User ID and preferences are required."}), 400
+
+    try:
+        connection = pyodbc.connect(DB_CONNECTION_STRING)
+        cursor = connection.cursor()
+
+        # Insert preferences into tb_UserPreferences
+        cursor.execute("""
+            INSERT INTO tb_UserPreferences (user_id, business_type, estimated_weekly_footfall, 
+                estimated_monthly_revenue, avg_transaction_value, target_audience_age, target_audience_category)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, preferences["business_type"], preferences["weekly_footfall"],
+              preferences["monthly_revenue"], preferences["transaction_value"], 
+              preferences["audience_age"], preferences["audience_category"]))
+
+        connection.commit()
+
+        # Prepare the input prompt for OpenAI model
+        comparison_prompt = f"""
+        Based on the following preferences:
+        - Business Type: {preferences["business_type"]}
+        - Estimated Weekly Footfall: {preferences["weekly_footfall"]}
+        - Estimated Monthly Revenue: {preferences["monthly_revenue"]}
+        - Average Transaction Value: {preferences["transaction_value"]}
+        - Target Audience Age: {preferences["audience_age"]}
+        - Target Audience Category: {preferences["audience_category"]}
+
+        Generate detailed insights and suggestions to optimize their business strategy.
+        """
+        insights_response = client.chat.completions.create(
+            model="gpt-3.5-turbo-0125",
+            response_format={"type": "text"},
+            temperature=0.7,
+            max_tokens=250,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant generating actionable business insights."},
+                {"role": "user", "content": comparison_prompt}
+            ]
+        )
+
+        # Extract insights from the OpenAI response
+        insights = insights_response['choices'][0]['message']['content'].strip()
+
+        # Fetch user email
+        cursor.execute("SELECT email FROM tb_MS_User WHERE user_id = ?", (user_id,))
+        email = cursor.fetchone()[0]
+
+        # Generate and send personalized email
+        email_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Personalized Insights</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; }}
+                .highlight {{ color: #2c7ae8; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <p>Dear User,</p>
+            <p>Thank you for sharing your preferences. Based on your inputs, here are some insights from our AI engine:</p>
+            <blockquote style="font-style: italic; color: #555;">{insights}</blockquote>
+            <p>If you have further questions, feel free to contact our sales team at <a href="mailto:sales@geoplatform.com">sales@geoplatform.com</a>.</p>
+            <p>Best regards,<br>Team GeoPlatform</p>
+        </body>
+        </html>
+        """
+        send_email(email, "Your Personalized Insights from GeoPlatform", email_body)
+        return jsonify({"message": "Preferences saved successfully. Insights emailed."}), 200
+    except Exception as e:
+        logging.error(f"Error during preferences saving: {e}")
+        return jsonify({"error": str(e)}), 500
 
 def initialize_vector_store():
     """Initialize the vector store from the persistent directory, if it exists."""
