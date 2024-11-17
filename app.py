@@ -73,7 +73,7 @@ def generate_jwt(user_id):
     """Generate a JWT token."""
     payload = {
         'user_id': user_id,
-        'exp': datetime.utcnow() + timedelta(hours=1)  # Token expires in 1 hour
+        'exp': datetime.utcnow() + timedelta(hours=10)  # Token expires in 1 hour
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
 
