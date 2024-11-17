@@ -227,8 +227,13 @@ def validate_otp():
         connection.commit()
         cursor.execute("SELECT user_id FROM tb_MS_User WHERE email = ?", (email,))
         user_id = cursor.fetchone()[0]
-
-        # Send Welcome Email
+        cursor.execute("""
+                UPDATE tb_UserOTP 
+                SET user_id = (SELECT user_id FROM tb_MS_User WHERE email = ?),
+                    updated_at = GETDATE()
+                WHERE email = ? AND is_used = 0 AND is_deleted = 0
+            """, (email, email))
+        connection.commit()
         welcome_email_body = f"""
         <!DOCTYPE html>
         <html>
