@@ -229,10 +229,10 @@ def validate_otp():
         user_id = cursor.fetchone()[0]
         cursor.execute("""
                 UPDATE tb_UserOTP 
-                SET user_id = (SELECT user_id FROM tb_MS_User WHERE email = ?),
+                SET user_id = ?,
                     updated_at = GETDATE()
                 WHERE email = ? AND is_used = 0 AND is_deleted = 0
-            """, (email, email))
+            """, (user_id, email))
         connection.commit()
         welcome_email_body = f"""
         <!DOCTYPE html>
