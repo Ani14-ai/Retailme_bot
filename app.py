@@ -185,7 +185,9 @@ def register_user():
 
 @app.route('/api/validate-otp', methods=['POST'])
 def validate_otp():
-    """Validate the OTP and create the user."""
+    """
+    Validate the OTP and create the user.
+    """
     data = request.json
     email = data.get('email')
     otp = data.get('otp')
@@ -208,32 +210,41 @@ def validate_otp():
 
         if not otp_data:
             return jsonify({"error": "Invalid OTP."}), 400
-        if otp_data.is_used:
+        if otp_data[2]:  # is_used = True
             return jsonify({"error": "OTP already used."}), 400
-        if otp_data.expiry_at < datetime.now():
+        if otp_data[1] < datetime.now():  # expiry_at < current time
             return jsonify({"error": "OTP expired."}), 400
 
         # Mark OTP as used
-        otp_id = otp_data.otp_id
-        cursor.execute("UPDATE tb_UserOTP SET is_used = 1 WHERE otp_id = ?", (otp_id,))
+        otp_id = otp_data[0]
+        cursor.execute("""
+            UPDATE tb_UserOTP 
+            SET is_used = 1, updated_at = GETDATE()
+            WHERE otp_id = ?
+        """, (otp_id,))
 
         # Create User
         license_key = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=6))
         license_expiry_date = datetime.now() + timedelta(days=7)
         cursor.execute("""
             INSERT INTO tb_MS_User (name, email, phone_number, temporary_license_key, license_expiry_date)
+            OUTPUT INSERTED.user_id
             VALUES (?, ?, ?, ?, ?)
         """, (name, email, phone_number, license_key, license_expiry_date))
-        connection.commit()
-        cursor.execute("SELECT user_id FROM tb_MS_User WHERE email = ?", (email,))
         user_id = cursor.fetchone()[0]
+
+        if not user_id:
+            return jsonify({"error": "Failed to create user and retrieve user_id."}), 500
+
+        # Update user_id in tb_UserOTP
         cursor.execute("""
-                UPDATE tb_UserOTP 
-                SET user_id = ?,
-                    updated_at = GETDATE()
-                WHERE email = ? AND is_used = 0 AND is_deleted = 0
-            """, (user_id, email))
+            UPDATE tb_UserOTP 
+            SET user_id = ?, updated_at = GETDATE()
+            WHERE email = ? AND otp = ? AND is_used = 1 AND is_deleted = 0
+        """, (user_id, email, otp))
         connection.commit()
+
+        # Send Welcome Email
         welcome_email_body = f"""
         <!DOCTYPE html>
         <html>
@@ -252,9 +263,13 @@ def validate_otp():
         </body>
         </html>
         """
-        send_email(email, "Welcome to Storetail", welcome_email_body)
+        send_email(email, "Welcome to GeoPlatform", welcome_email_body)
 
-        return jsonify({"message": "Registration Successful", "license_key": license_key, "user_id": user_id}), 200
+        return jsonify({
+            "message": "Registration Successful",
+            "license_key": license_key,
+            "user_id": user_id
+        }), 200
     except Exception as e:
         logging.error(f"Error during OTP validation: {e}")
         return jsonify({"error": str(e)}), 500
