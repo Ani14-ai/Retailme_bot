@@ -378,17 +378,6 @@ def save_preferences():
     try:
         connection = pyodbc.connect(DB_CONNECTION_STRING)
         cursor = connection.cursor()
-
-        # Insert preferences into tb_UserPreferences
-        cursor.execute("""
-            INSERT INTO tb_UserPreferences (user_id, business_type, estimated_weekly_footfall, 
-                estimated_monthly_revenue, avg_transaction_value, target_audience_age, target_audience_category)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (user_id, preferences["business_type"], preferences["weekly_footfall"],
-              preferences["monthly_revenue"], preferences["transaction_value"], 
-              preferences["audience_age"], preferences["audience_category"]))
-        connection.commit()
-
         # Prepare the input prompt for OpenAI model
         comparison_prompt = f"""
         Based on the following preferences:
@@ -412,6 +401,15 @@ def save_preferences():
             ]
         )
         insights = insights_response.choices[0].message.content
+        cursor.execute("""
+            INSERT INTO tb_UserPreferences (user_id, business_type, estimated_weekly_footfall, 
+                estimated_monthly_revenue, avg_transaction_value, target_audience_age, 
+                target_audience_category, insights)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, preferences["business_type"], preferences["weekly_footfall"],
+              preferences["monthly_revenue"], preferences["transaction_value"], 
+              preferences["audience_age"], preferences["audience_category"], insights))
+        connection.commit()        
         cursor.execute("SELECT email FROM tb_MS_User WHERE user_id = ?", (user_id,))
         email = cursor.fetchone()[0]
 
