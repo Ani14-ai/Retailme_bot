@@ -316,23 +316,41 @@ def login():
 
     if not email or not password:
         return jsonify({"error": "Email and password are required."}), 400
-
     try:
         connection = pyodbc.connect(DB_CONNECTION_STRING)
         cursor = connection.cursor()
-
-        # Fetch user
-        cursor.execute("SELECT user_id, password_hash, temporary_license_key FROM tb_MS_User WHERE email = ?", (email,))
+        # Fetch user details
+        cursor.execute("""
+            SELECT user_id, password_hash, temporary_license_key, license_expiry_date
+            FROM tb_MS_User 
+            WHERE email = ?
+        """, (email,))
         user = cursor.fetchone()
 
         if not user:
-            return jsonify({"error": "Invalid email."}), 401
-        if not bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8')):
+            return jsonify({"error": "Invalid email. Please register first."}), 401
+
+        user_id, password_hash, temporary_license_key, license_expiry_date = user
+
+        # Check if password is not set
+        if not password_hash:
+            return jsonify({"error": "Password not set. Please set your password to log in."}), 403
+
+        # Verify the provided password
+        if not bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8')):
             return jsonify({"error": "Invalid password."}), 401
 
-        # Generate JWT
-        token = generate_jwt(user.user_id)
-        return jsonify({"message": "Login successful.", "token": token, "license_key": user.temporary_license_key, "user_id": user.user_id}), 200
+        # Check if the license has expired
+        if license_expiry_date < datetime.now():
+            return jsonify({"error": "License expired. Please contact support to renew your subscription."}), 403
+        # Generate JWT token
+        token = generate_jwt(user_id)
+        return jsonify({
+            "message": "Login successful.",
+            "token": token,
+            "license_key": temporary_license_key,
+            "user_id": user_id
+        }), 200
     except Exception as e:
         logging.error(f"Error during login: {e}")
         return jsonify({"error": str(e)}), 500
