@@ -396,7 +396,7 @@ def save_preferences():
             temperature=0.7,
             max_tokens=250,
             messages=[
-                {"role": "system", "content": "You are a helpful assistant generating actionable business insights."},
+                {"role": "system", "content": "You are a Geo-Assitant and based on the preferences given by the user for the next spot to open their store, share some insights in one paragraph , explaining how our team would use their prefernces and our collected data to locate the next best store for them. Your response should be very personalized and formal."},
                 {"role": "user", "content": comparison_prompt}
             ]
         )
