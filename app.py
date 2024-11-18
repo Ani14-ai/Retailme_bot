@@ -9,6 +9,7 @@ import uuid
 import random
 import requests
 import jwt
+from apscheduler.schedulers.background import BackgroundScheduler
 from openai import OpenAI
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor
@@ -478,6 +479,44 @@ def get_credits():
     except Exception as e:
         logging.error(f"Error fetching credits: {e}")
         return jsonify({"error": str(e)}), 500
+
+def reduce_credits():
+    """
+    Reduce credits by 100 for all users whose credit_reset_date is before today.
+    """
+    try:
+        connection = pyodbc.connect(DB_CONNECTION_STRING)
+        cursor = connection.cursor()
+
+        # Reduce credits for users who still have credits
+        cursor.execute("""
+            UPDATE tb_UserCredits
+            SET available_credits = CASE 
+                WHEN available_credits >= 100 THEN available_credits - 100
+                ELSE 0
+            END,
+            credit_reset_date = GETDATE(),
+            updated_at = GETDATE()
+            WHERE credit_reset_date < CAST(GETDATE() AS DATE)
+        """)
+        connection.commit()
+        logging.info("Daily credits reduction completed successfully.")
+    except Exception as e:
+        logging.error(f"Error during daily credits reduction: {e}")
+
+# Schedule the daily task
+scheduler = BackgroundScheduler()
+scheduler.add_job(reduce_credits, 'cron', hour=0)  # Runs daily at midnight
+scheduler.start()
+
+@app.before_first_request
+def initialize_scheduler():
+    """
+    Ensure the scheduler starts when the app starts.
+    """
+    if not scheduler.running:
+        scheduler.start()
+
 
 
 #BOT
