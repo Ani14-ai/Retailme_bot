@@ -387,7 +387,6 @@ def save_preferences():
         """, (user_id, preferences["business_type"], preferences["weekly_footfall"],
               preferences["monthly_revenue"], preferences["transaction_value"], 
               preferences["audience_age"], preferences["audience_category"]))
-
         connection.commit()
 
         # Prepare the input prompt for OpenAI model
@@ -412,11 +411,7 @@ def save_preferences():
                 {"role": "user", "content": comparison_prompt}
             ]
         )
-
-        # Extract insights from the OpenAI response
-        insights = insights_response['choices'][0]['message']['content'].strip()
-
-        # Fetch user email
+        insights = insights_response.choices[0].message.content
         cursor.execute("SELECT email FROM tb_MS_User WHERE user_id = ?", (user_id,))
         email = cursor.fetchone()[0]
 
