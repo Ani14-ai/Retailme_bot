@@ -418,7 +418,6 @@ def save_preferences():
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Personalized Insights</title>
             <style>
                 body {{ font-family: Arial, sans-serif; }}
                 .highlight {{ color: #2c7ae8; font-weight: bold; }}
@@ -428,12 +427,12 @@ def save_preferences():
             <p>Dear User,</p>
             <p>Thank you for sharing your preferences. Based on your inputs, here are some insights from our AI engine:</p>
             <blockquote style="font-style: italic; color: #555;">{insights}</blockquote>
-            <p>If you have further questions, feel free to contact our sales team at <a href="mailto:sales@geoplatform.com">sales@geoplatform.com</a>.</p>
-            <p>Best regards,<br>Team GeoPlatform</p>
+            <p>If you have further questions, feel free to contact our sales team at <a href="mailto:corporate@waysaheadglobal.com">sales@geoplatform.com</a>.</p>
+            <p>Best regards,<br>Team WaysAhead</p>
         </body>
         </html>
         """
-        send_email(email, "Your Personalized Insights from GeoPlatform", email_body)
+        send_email(email, "Preferences Have been Noted", email_body)
         return jsonify({"message": "Preferences saved successfully. Insights emailed."}), 200
     except Exception as e:
         logging.error(f"Error during preferences saving: {e}")
