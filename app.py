@@ -249,7 +249,11 @@ def validate_otp():
             WHERE email = ? AND otp = ? AND is_used = 1 AND is_deleted = 0
         """, (user_id, email, otp))
         connection.commit()
-
+        cursor.execute("""
+            INSERT INTO tb_UserCredits (user_id, available_credits, last_reset_date)
+            VALUES (?, ?, GETDATE())
+        """, (user_id, 700))
+        connection.commit()
         # Send Welcome Email
         welcome_email_body = f"""
         <!DOCTYPE html>
