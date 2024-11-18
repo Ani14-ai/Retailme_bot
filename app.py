@@ -35,7 +35,12 @@ DB_CONNECTION_STRING = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=103.239.89
 
 # Directory to persist the vector store
 VECTOR_STORE_DIR = "persistent_vector_store"
-
+BLACKLISTED_DOMAINS = [
+    "gmail.com", "yahoo.com", "hotmail.com", "outlook.com",
+    "aol.com", "live.com", "icloud.com", "protonmail.com",
+    "zoho.com", "mail.com", "gmx.com", "yandex.com",
+    "me.com", "qq.com", "126.com", "163.com"
+]
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
 
@@ -113,7 +118,6 @@ def verify_token():
         return jsonify({"error": "Missing JWT token in Authorization header."}), 401
 
     try:
-        # Decode and validate the token
         payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
         user_id = payload.get('user_id')
         exp_time = datetime.utcfromtimestamp(payload['exp']).strftime('%Y-%m-%d %H:%M:%S')
@@ -135,11 +139,13 @@ def register_user():
     name = data.get('name')
     email = data.get('email')
     phone_number = data.get('phone_number')
-
+    domain = email.split('@')[-1]
     if not name or not email or not phone_number:
         return jsonify({"error": "Name, email, and phone number are required."}), 400
-
+    if domain in BLACKLISTED_DOMAINS:
+            return jsonify({"error": "Personal email addresses (e.g., Gmail, Yahoo) are not allowed."}), 400
     try:
+        
         connection = pyodbc.connect(DB_CONNECTION_STRING)
         cursor = connection.cursor()
 
