@@ -143,7 +143,7 @@ def register_user():
     if not name or not email or not phone_number:
         return jsonify({"error": "Name, email, and phone number are required."}), 400
     if domain in BLACKLISTED_DOMAINS:
-            return jsonify({"error": "Personal email addresses (e.g., Gmail, Yahoo) are not allowed."}), 400
+            return jsonify({"error": "Personal email addresses (e.g., Gmail, Yahoo) are not allowed."}), 505
     try:
         
         connection = pyodbc.connect(DB_CONNECTION_STRING)
