@@ -504,18 +504,28 @@ def reduce_credits():
     except Exception as e:
         logging.error(f"Error during daily credits reduction: {e}")
 
-# Schedule the daily task
+# Initialize the scheduler
 scheduler = BackgroundScheduler()
 scheduler.add_job(reduce_credits, 'cron', hour=0)  # Runs daily at midnight
-scheduler.start()
 
-@app.before_first_request
-def initialize_scheduler():
+def start_scheduler():
     """
-    Ensure the scheduler starts when the app starts.
+    Start the scheduler. This function can be called during application startup.
     """
     if not scheduler.running:
         scheduler.start()
+        logging.info("Scheduler started successfully.")
+
+# Call the scheduler during app initialization
+start_scheduler()
+
+@app.route('/healthcheck', methods=['GET'])
+def health_check():
+    """
+    Health check endpoint to ensure the app and scheduler are running.
+    """
+    return jsonify({"message": "App and Scheduler are running."}), 200
+
 
 
 
