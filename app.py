@@ -250,7 +250,7 @@ def validate_otp():
         """, (user_id, email, otp))
         connection.commit()
         cursor.execute("""
-            INSERT INTO tb_UserCredits (user_id, available_credits, last_reset_date)
+            INSERT INTO tb_UserCredits (user_id, available_credits, credit_reset_date)
             VALUES (?, ?, GETDATE())
         """, (user_id, 700))
         connection.commit()
