@@ -448,6 +448,39 @@ def save_preferences():
         logging.error(f"Error during preferences saving: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/api/get-credits', methods=['GET'])
+def get_credits():
+    """
+    Fetch the available credits for a user.
+    """
+    user_id = request.args.get('user_id')
+
+    if not user_id:
+        return jsonify({"error": "User ID is required."}), 400
+
+    try:
+        connection = pyodbc.connect(DB_CONNECTION_STRING)
+        cursor = connection.cursor()
+
+        # Fetch user's available credits
+        cursor.execute("""
+            SELECT available_credits 
+            FROM tb_UserCredits 
+            WHERE user_id = ?
+        """, (user_id,))
+        result = cursor.fetchone()
+
+        if not result:
+            return jsonify({"error": "User not found or no credits record available."}), 404
+
+        return jsonify({"user_id": user_id, "available_credits": result[0]}), 200
+    except Exception as e:
+        logging.error(f"Error fetching credits: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+#BOT
 def initialize_vector_store():
     """Initialize the vector store from the persistent directory, if it exists."""
     global vector_store
