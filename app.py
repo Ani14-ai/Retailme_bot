@@ -438,7 +438,7 @@ def save_preferences():
             <p>Dear User,</p>
             <p>Thank you for sharing your preferences. Based on your inputs, here are some insights from our AI engine:</p>
             <blockquote style="font-style: italic; color: #555;">{insights}</blockquote>
-            <p>If you have further questions, feel free to contact our sales team at <a href="mailto:corporate@waysaheadglobal.com">sales@geoplatform.com</a>.</p>
+            <p>If you have further questions, feel free to contact our sales team at <a href="mailto:corporate@waysaheadglobal.com">corporate@waysaheadglobal.com</a>.</p>
             <p>Best regards,<br>Team WaysAhead</p>
         </body>
         </html>
