@@ -158,6 +158,59 @@ def get_locations():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/api/stores', methods=['GET'])
+def get_stores_by_location():
+    """Fetches all stores associated with the given location name."""
+    location_name = request.args.get('location_name')
+    if not location_name:
+        return jsonify({"error": "location_name parameter is required"}), 400
+
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Step 1: Fetch location_id for the given location_name
+        location_query = """
+        SELECT location_id 
+        FROM RME.tb_Location 
+        WHERE name = ?
+        """
+        cursor.execute(location_query, (location_name,))
+        location_result = cursor.fetchone()
+
+        if not location_result:
+            return jsonify({"error": "Location not found"}), 404
+
+        location_id = location_result[0]
+
+        # Step 2: Fetch stores associated with the location_id
+        stores_query = """
+        SELECT store_id, store_name, latitude, longitude
+        FROM RME.tb_Mall_Stores
+        WHERE location_id = ?
+        """
+        cursor.execute(stores_query, (location_id,))
+        stores = []
+        for row in cursor.fetchall():
+            stores.append({
+                "store_id": row[0],
+                "store_name": row[1],
+                "latitude": row[2],
+                "longitude": row[3]
+            })
+
+        # Close the connection
+        cursor.close()
+        conn.close()
+
+        # Return the stores as JSON
+        return jsonify({"location_id": location_id, "stores": stores})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/verify-token', methods=['POST'])
 def verify_token():
     """
