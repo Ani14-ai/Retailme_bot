@@ -109,6 +109,55 @@ def authenticate():
 
 
 # APIs
+# Database connection details
+DB_CONFIG = {
+    'driver': '{ODBC Driver 17 for SQL Server}',
+    'server': 'waysadmin.database.windows.net',
+    'database': 'WAYSDBSERVER',
+    'username': 'admin2019',
+    'password': 'AzDel#iDB@2019'
+}
+
+def get_db_connection():
+    """Establishes and returns a database connection."""
+    conn = pyodbc.connect(
+        f"DRIVER={DB_CONFIG['driver']};"
+        f"SERVER={DB_CONFIG['server']};"
+        f"DATABASE={DB_CONFIG['database']};"
+        f"UID={DB_CONFIG['username']};"
+        f"PWD={DB_CONFIG['password']};"
+    )
+    return conn
+
+@app.route('/api/locations', methods=['GET'])
+def get_locations():
+    """Fetches all latitude, longitude, location_id, and name from the location table."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        query = """
+        SELECT location_id, name, latitude, longitude 
+        FROM RME.tb_Location
+        """
+        cursor.execute(query)
+        locations = []
+        for row in cursor.fetchall():
+            locations.append({
+                "location_id": row[0],
+                "name": row[1],
+                "latitude": row[2],
+                "longitude": row[3]
+            })
+        
+        # Close the connection
+        cursor.close()
+        conn.close()
+        
+        # Return the data as JSON
+        return jsonify(locations)    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/verify-token', methods=['POST'])
 def verify_token():
     """
