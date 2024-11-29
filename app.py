@@ -214,7 +214,6 @@ def get_stores_by_location():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 def get_closest_store_name(user_input, store_names):
     """Finds the closest matching store name."""
     match = process.extractOne(user_input, store_names)
@@ -251,15 +250,13 @@ def get_store_relations():
         SELECT 
             s.store_id, 
             s.store_name, 
-            c.store_id AS competitor_store_id, 
-            c.store_name AS competitor_store_name,
-            p.store_id AS complementor_store_id, 
-            p.store_name AS complementor_store_name
-        FROM RME.tb_Mall_Stores_facts AS facts
-        LEFT JOIN RME.tb_Mall_Stores AS s ON facts.store_id = s.store_id
-        LEFT JOIN RME.tb_Mall_Stores AS c ON facts.competitor_store_id = c.store_id
-        LEFT JOIN RME.tb_Mall_Stores AS p ON facts.complementor_store_id = p.store_id
-        WHERE facts.store_id = ?
+            r.related_store_id, 
+            rs.store_name AS related_store_name, 
+            r.relationship_type
+        FROM RME.tb_Mall_Stores_facts AS r
+        JOIN RME.tb_Mall_Stores AS s ON r.store_id = s.store_id
+        JOIN RME.tb_Mall_Stores AS rs ON r.related_store_id = rs.store_id
+        WHERE r.store_id = ?
         """
         cursor.execute(query, (store_id,))
         results = cursor.fetchall()
@@ -271,15 +268,15 @@ def get_store_relations():
         competitors = []
         complementors = []
         for row in results:
-            if row[2]:  # If competitor_store_id exists
+            if row[4] == 'Competitor':  # If relationship_type is Competitor
                 competitors.append({
                     "competitor_store_id": row[2],
                     "competitor_store_name": row[3]
                 })
-            if row[4]:  # If complementor_store_id exists
+            elif row[4] == 'Complementor':  # If relationship_type is Complementor
                 complementors.append({
-                    "complementor_store_id": row[4],
-                    "complementor_store_name": row[5]
+                    "complementor_store_id": row[2],
+                    "complementor_store_name": row[3]
                 })
 
         # Close the connection
