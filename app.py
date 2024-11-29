@@ -9,7 +9,6 @@ import uuid
 import random
 import requests
 import jwt
-from rapidfuzz import process
 from apscheduler.schedulers.background import BackgroundScheduler
 from openai import OpenAI
 from datetime import datetime, timezone, timedelta
@@ -214,14 +213,9 @@ def get_stores_by_location():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-def get_closest_store_name(user_input, store_names):
-    """Finds the closest matching store name."""
-    match = process.extractOne(user_input, store_names)
-    return match[0], match[1]  # Extract only the match and score
-
 @app.route('/api/store_relations', methods=['GET'])
 def get_store_relations():
-    """Fetches competitors and complementors for a store based on a name with fuzzy matching."""
+    """Fetches competitors and complementors for a store based on an exact or partial name."""
     store_name = request.args.get('store_name')
     if not store_name:
         return jsonify({"error": "store_name parameter is required"}), 400
@@ -231,27 +225,29 @@ def get_store_relations():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Step 1: Fetch all store names
-        cursor.execute("SELECT store_id, store_name FROM RME.tb_Mall_Stores")
-        store_data = cursor.fetchall()
+        # Step 1: Fetch store ID and matched store name using a SQL `LIKE` query
+        match_query = """
+        SELECT store_id, store_name 
+        FROM RME.tb_Mall_Stores
+        WHERE store_name LIKE ?
+        """
+        cursor.execute(match_query, (f"%{store_name}%",))
+        match_result = cursor.fetchone()
 
-        # Extract store names and IDs
-        store_names = {row[1]: row[0] for row in store_data}  # {store_name: store_id}
-
-        # Step 2: Find the closest match to the input name
-        match_name, match_score = get_closest_store_name(store_name, list(store_names.keys()))
-        if not match_name:
+        if not match_result:
             return jsonify({"error": "No matching store found"}), 404
 
-        store_id = store_names[match_name]
+        store_id, matched_name = match_result
 
-        # Step 3: Fetch competitors and complementors for the matched store_id
+        # Step 2: Fetch competitors and complementors for the matched store_id
         query = """
         SELECT 
             s.store_id, 
             s.store_name, 
             r.related_store_id, 
             rs.store_name AS related_store_name, 
+            rs.contact_number, 
+            rs.weekly_footfall, 
             r.relationship_type
         FROM RME.tb_Mall_Stores_facts AS r
         JOIN RME.tb_Mall_Stores AS s ON r.store_id = s.store_id
@@ -262,21 +258,25 @@ def get_store_relations():
         results = cursor.fetchall()
 
         if not results:
-            return jsonify({"error": "Store not found or no relations available"}), 404
+            return jsonify({"error": "Store found but no relations available"}), 404
 
         # Structure the response
         competitors = []
         complementors = []
         for row in results:
-            if row[4] == 'Competitor':  # If relationship_type is Competitor
+            if row[6] == 'Competitor':  # If relationship_type is Competitor
                 competitors.append({
                     "competitor_store_id": row[2],
-                    "competitor_store_name": row[3]
+                    "competitor_store_name": row[3],
+                    "contact_number": row[4],
+                    "weekly_footfall": row[5]
                 })
-            elif row[4] == 'Complementor':  # If relationship_type is Complementor
+            elif row[6] == 'Complementor':  # If relationship_type is Complementor
                 complementors.append({
                     "complementor_store_id": row[2],
-                    "complementor_store_name": row[3]
+                    "complementor_store_name": row[3],
+                    "contact_number": row[4],
+                    "weekly_footfall": row[5]
                 })
 
         # Close the connection
@@ -286,8 +286,7 @@ def get_store_relations():
         # Return the response as JSON
         return jsonify({
             "input_name": store_name,
-            "matched_name": match_name,
-            "match_score": match_score,
+            "matched_name": matched_name,
             "store_id": store_id,
             "competitors": competitors,
             "complementors": complementors
