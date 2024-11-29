@@ -213,6 +213,69 @@ def get_stores_by_location():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/api/store_relations', methods=['GET'])
+def get_store_relations():
+    """Fetches competitors and complementors for a given store ID."""
+    store_id = request.args.get('store_id')
+    if not store_id:
+        return jsonify({"error": "store_id parameter is required"}), 400
+
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Step 1: Fetch competitors and complementors for the given store_id
+        query = """
+        SELECT 
+            s.store_id, 
+            s.store_name, 
+            c.store_id AS competitor_store_id, 
+            c.store_name AS competitor_store_name,
+            p.store_id AS complementor_store_id, 
+            p.store_name AS complementor_store_name
+        FROM RME.tb_Mall_Stores_facts AS facts
+        LEFT JOIN RME.tb_Mall_Stores AS s ON facts.store_id = s.store_id
+        LEFT JOIN RME.tb_Mall_Stores AS c ON facts.competitor_store_id = c.store_id
+        LEFT JOIN RME.tb_Mall_Stores AS p ON facts.complementor_store_id = p.store_id
+        WHERE facts.store_id = ?
+        """
+        cursor.execute(query, (store_id,))
+        results = cursor.fetchall()
+
+        if not results:
+            return jsonify({"error": "Store not found or no relations available"}), 404
+
+        # Structure the response
+        competitors = []
+        complementors = []
+        for row in results:
+            if row[2]:  # If competitor_store_id exists
+                competitors.append({
+                    "competitor_store_id": row[2],
+                    "competitor_store_name": row[3]
+                })
+            if row[4]:  # If complementor_store_id exists
+                complementors.append({
+                    "complementor_store_id": row[4],
+                    "complementor_store_name": row[5]
+                })
+
+        # Close the connection
+        cursor.close()
+        conn.close()
+
+        # Return the response as JSON
+        return jsonify({
+            "store_id": store_id,
+            "competitors": competitors,
+            "complementors": complementors
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/verify-token', methods=['POST'])
 def verify_token():
     """
