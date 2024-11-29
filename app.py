@@ -218,7 +218,7 @@ def get_stores_by_location():
 def get_closest_store_name(user_input, store_names):
     """Finds the closest matching store name."""
     match = process.extractOne(user_input, store_names)
-    return match
+    return match[0], match[1]  # Extract only the match and score
 
 @app.route('/api/store_relations', methods=['GET'])
 def get_store_relations():
@@ -240,12 +240,11 @@ def get_store_relations():
         store_names = {row[1]: row[0] for row in store_data}  # {store_name: store_id}
 
         # Step 2: Find the closest match to the input name
-        match = get_closest_store_name(store_name, list(store_names.keys()))
-        if not match:
+        match_name, match_score = get_closest_store_name(store_name, list(store_names.keys()))
+        if not match_name:
             return jsonify({"error": "No matching store found"}), 404
 
-        closest_name, match_score = match
-        store_id = store_names[closest_name]
+        store_id = store_names[match_name]
 
         # Step 3: Fetch competitors and complementors for the matched store_id
         query = """
@@ -290,7 +289,7 @@ def get_store_relations():
         # Return the response as JSON
         return jsonify({
             "input_name": store_name,
-            "matched_name": closest_name,
+            "matched_name": match_name,
             "match_score": match_score,
             "store_id": store_id,
             "competitors": competitors,
