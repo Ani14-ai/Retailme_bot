@@ -9,6 +9,7 @@ import uuid
 import random
 import requests
 import jwt
+from rapidfuzz import process
 from apscheduler.schedulers.background import BackgroundScheduler
 from openai import OpenAI
 from datetime import datetime, timezone, timedelta
@@ -214,19 +215,39 @@ def get_stores_by_location():
         return jsonify({"error": str(e)}), 500
 
 
+def get_closest_store_name(user_input, store_names):
+    """Finds the closest matching store name."""
+    match = process.extractOne(user_input, store_names)
+    return match
+
 @app.route('/api/store_relations', methods=['GET'])
 def get_store_relations():
-    """Fetches competitors and complementors for a given store ID."""
-    store_id = request.args.get('store_id')
-    if not store_id:
-        return jsonify({"error": "store_id parameter is required"}), 400
+    """Fetches competitors and complementors for a store based on a name with fuzzy matching."""
+    store_name = request.args.get('store_name')
+    if not store_name:
+        return jsonify({"error": "store_name parameter is required"}), 400
 
     try:
         # Connect to the database
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Step 1: Fetch competitors and complementors for the given store_id
+        # Step 1: Fetch all store names
+        cursor.execute("SELECT store_id, store_name FROM RME.tb_Mall_Stores")
+        store_data = cursor.fetchall()
+
+        # Extract store names and IDs
+        store_names = {row[1]: row[0] for row in store_data}  # {store_name: store_id}
+
+        # Step 2: Find the closest match to the input name
+        match = get_closest_store_name(store_name, list(store_names.keys()))
+        if not match:
+            return jsonify({"error": "No matching store found"}), 404
+
+        closest_name, match_score = match
+        store_id = store_names[closest_name]
+
+        # Step 3: Fetch competitors and complementors for the matched store_id
         query = """
         SELECT 
             s.store_id, 
@@ -268,6 +289,9 @@ def get_store_relations():
 
         # Return the response as JSON
         return jsonify({
+            "input_name": store_name,
+            "matched_name": closest_name,
+            "match_score": match_score,
             "store_id": store_id,
             "competitors": competitors,
             "complementors": complementors
