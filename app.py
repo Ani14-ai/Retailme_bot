@@ -248,6 +248,8 @@ def get_store_relations():
             rs.store_name AS related_store_name, 
             rs.contact_number, 
             rs.weekly_footfall, 
+            rs.latitude, 
+            rs.longitude, 
             r.relationship_type
         FROM RME.tb_Mall_Stores_facts AS r
         JOIN RME.tb_Mall_Stores AS s ON r.store_id = s.store_id
@@ -264,19 +266,23 @@ def get_store_relations():
         competitors = []
         complementors = []
         for row in results:
-            if row[6] == 'Competitor':  # If relationship_type is Competitor
+            if row[8] == 'Competitor':  # If relationship_type is Competitor
                 competitors.append({
                     "competitor_store_id": row[2],
                     "competitor_store_name": row[3],
                     "contact_number": row[4],
-                    "weekly_footfall": row[5]
+                    "weekly_footfall": row[5],
+                    "latitude": row[6],
+                    "longitude": row[7]
                 })
-            elif row[6] == 'Complementor':  # If relationship_type is Complementor
+            elif row[8] == 'Complementor':  # If relationship_type is Complementor
                 complementors.append({
                     "complementor_store_id": row[2],
                     "complementor_store_name": row[3],
                     "contact_number": row[4],
-                    "weekly_footfall": row[5]
+                    "weekly_footfall": row[5],
+                    "latitude": row[6],
+                    "longitude": row[7]
                 })
 
         # Close the connection
