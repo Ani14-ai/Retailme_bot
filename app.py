@@ -187,7 +187,7 @@ def get_stores_by_location():
 
         # Step 2: Fetch stores associated with the location_id
         stores_query = """
-        SELECT store_id, store_name, latitude, longitude
+        SELECT store_id, store_name, latitude, longitude, weekly_footfall, contact_number
         FROM RME.tb_Mall_Stores
         WHERE location_id = ?
         """
@@ -198,7 +198,9 @@ def get_stores_by_location():
                 "store_id": row[0],
                 "store_name": row[1],
                 "latitude": row[2],
-                "longitude": row[3]
+                "longitude": row[3],
+                "weekly_footfall": row[4],
+                "contact_number": row[5]
             })
 
         # Close the connection
