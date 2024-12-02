@@ -220,6 +220,74 @@ def get_stores_by_location():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def fetch_data():
+    """Fetches data from the database for clustering."""
+    conn = get_db_connection()
+    query = """
+    SELECT store_id, latitude, longitude, weekly_footfall, 
+           CASE 
+               WHEN age_range LIKE '%18-45%' THEN 1 
+               WHEN age_range LIKE '%25-65%' THEN 2 
+               ELSE 3 END AS age_range_group,
+           CASE 
+               WHEN ethnicity LIKE '%Emirati%' THEN 1 
+               WHEN ethnicity LIKE '%Western%' THEN 2 
+               ELSE 3 END AS ethnicity_group
+    FROM RME.tb_Mall_Stores
+    """
+    data = pd.read_sql(query, conn)
+    conn.close()
+    return data
+
+@app.route('/api/clusters', methods=['GET'])
+def get_clusters():
+    """Generates clusters based on the requested parameter."""
+    try:
+        # Fetch the clustering parameter from the request
+        cluster_by = request.args.get('cluster_by')
+        num_clusters = int(request.args.get('num_clusters', 5))  # Default to 5 clusters
+
+        if cluster_by not in ['weekly_footfall', 'age_range', 'ethnicity']:
+            return jsonify({"error": "Invalid cluster_by parameter. Choose from 'weekly_footfall', 'age_range', or 'ethnicity'"}), 400
+
+        # Fetch data from the database
+        data = fetch_data()
+
+        # Select features based on the parameter
+        if cluster_by == 'weekly_footfall':
+            features = data[['latitude', 'longitude', 'weekly_footfall']]
+        elif cluster_by == 'age_range':
+            features = data[['latitude', 'longitude', 'age_range_group']]
+        elif cluster_by == 'ethnicity':
+            features = data[['latitude', 'longitude', 'ethnicity_group']]
+
+        # Normalize the feature values
+        features_normalized = (features - features.mean()) / features.std()
+
+        # Perform clustering
+        kmeans = KMeans(n_clusters=num_clusters, random_state=42)
+        data['cluster'] = kmeans.fit_predict(features_normalized)
+
+        # Get the centroids
+        centroids = kmeans.cluster_centers_
+        centroids_unnormalized = centroids * features.std().values + features.mean().values
+
+        # Prepare the response
+        clusters = []
+        for i in range(num_clusters):
+            clusters.append({
+                "cluster_id": i,
+                "centroid_latitude": centroids_unnormalized[i, 0],
+                "centroid_longitude": centroids_unnormalized[i, 1],
+                "stores": data[data['cluster'] == i][['store_id', 'latitude', 'longitude']].to_dict(orient='records')
+            })
+
+        return jsonify({"clusters": clusters})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/store_relations', methods=['GET'])
 def get_store_relations():
     """Fetches competitors and complementors for a store based on an exact or partial name."""
