@@ -9,6 +9,8 @@ import uuid
 import random
 import requests
 import jwt
+import pandas as pd
+from sklearn.cluster import KMeans
 from apscheduler.schedulers.background import BackgroundScheduler
 from openai import OpenAI
 from datetime import datetime, timezone, timedelta
