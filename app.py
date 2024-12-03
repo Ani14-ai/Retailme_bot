@@ -263,6 +263,9 @@ def get_clusters():
         elif cluster_by == 'ethnicity':
             features = data[['latitude', 'longitude', 'ethnicity_group']]
 
+        # Handle missing values by filling with the mean
+        features.fillna(features.mean(), inplace=True)
+
         # Normalize the feature values
         features_normalized = (features - features.mean()) / features.std()
 
@@ -288,7 +291,6 @@ def get_clusters():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/api/store_relations', methods=['GET'])
 def get_store_relations():
