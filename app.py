@@ -246,6 +246,9 @@ def range_based_clusters():
         # Fetch data from the database
         data = fetch_data()
 
+        # Remove rows with NaN latitude or longitude
+        data = data.dropna(subset=['latitude', 'longitude'])
+
         if cluster_by == 'weekly_footfall':
             # Define footfall clusters
             ranges = {
@@ -278,7 +281,7 @@ def range_based_clusters():
         data['cluster'] = None
         if cluster_by == 'weekly_footfall':
             for cluster_name, condition in ranges.items():
-                data.loc[data[column].apply(lambda x: condition(x) if pd.notnull(x) else False), 'cluster'] = cluster_name
+                data.loc[data[column].apply(lambda x: condition(x)), 'cluster'] = cluster_name
         else:
             for cluster_name, cluster_values in ranges.items():
                 data.loc[data[column].apply(lambda x: x in cluster_values if pd.notnull(x) else False), 'cluster'] = cluster_name
@@ -287,26 +290,15 @@ def range_based_clusters():
         if data['cluster'].isnull().all():
             return jsonify({"error": "No data matches the specified ranges. Please verify the data or adjust the ranges."}), 404
 
-        # Handle NaN values and prepare the response
-        data = data.fillna({
-            "latitude": None,
-            "longitude": None,
-            "contact_number": None,
-            "parent_company": None,
-            "age_range": None,
-            "gender_distribution": None,
-            "weekly_footfall": None,
-            "sub_category": None
-        })
-
+        # Prepare the response
         clusters = []
         unique_clusters = data['cluster'].dropna().unique()
         for cluster_name in unique_clusters:
             cluster_data = data[data['cluster'] == cluster_name]
             clusters.append({
                 "cluster_name": cluster_name,
-                "centroid_latitude": cluster_data['latitude'].mean() if not cluster_data['latitude'].isnull().all() else None,
-                "centroid_longitude": cluster_data['longitude'].mean() if not cluster_data['longitude'].isnull().all() else None,
+                "centroid_latitude": cluster_data['latitude'].mean(),
+                "centroid_longitude": cluster_data['longitude'].mean(),
                 "stores": cluster_data.to_dict(orient='records')
             })
 
