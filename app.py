@@ -262,7 +262,7 @@ def range_based_clusters():
                 "Older Adults (15-65 years)": ["15-65 years", "25-65 years"],
                 "Families with Children": ["Families with children"]
              }
-            column = 'age_range'
+             column = 'age_range'
         elif cluster_by == 'gender_distribution':
             ranges = {
                 "Male-Dominated": "Male-dominated",
