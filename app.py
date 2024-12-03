@@ -278,7 +278,7 @@ def range_based_clusters():
         data['cluster'] = None
         if cluster_by == 'weekly_footfall':
             for cluster_name, condition in ranges.items():
-                data.loc[data[column].apply(lambda x: condition(x)), 'cluster'] = cluster_name
+                data.loc[data[column].apply(lambda x: condition(x) if pd.notnull(x) else False), 'cluster'] = cluster_name
         else:
             for cluster_name, cluster_values in ranges.items():
                 data.loc[data[column].apply(lambda x: x in cluster_values if pd.notnull(x) else False), 'cluster'] = cluster_name
@@ -288,7 +288,7 @@ def range_based_clusters():
             return jsonify({"error": "No data matches the specified ranges. Please verify the data or adjust the ranges."}), 404
 
         # Handle NaN values and prepare the response
-        fill_values = {
+        data = data.fillna({
             "latitude": None,
             "longitude": None,
             "contact_number": None,
@@ -297,8 +297,7 @@ def range_based_clusters():
             "gender_distribution": None,
             "weekly_footfall": None,
             "sub_category": None
-        }
-        data = data.fillna(value=fill_values)
+        })
 
         clusters = []
         unique_clusters = data['cluster'].dropna().unique()
