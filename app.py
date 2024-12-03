@@ -222,12 +222,11 @@ def get_stores_by_location():
         return jsonify({"error": str(e)}), 500
 
 def fetch_data():
-    """Fetches data from the database."""
+    """Fetches the required data from the database."""
     conn = get_db_connection()
     query = """
-    SELECT store_id, location_id, store_name, category, sub_category, floor, state_id, country_id,
-           district_id, neighborhood_id, parent_company, latitude, longitude, contact_number, 
-           weekly_footfall, age_range, gender_distribution, created_at, modified_at, is_deleted
+    SELECT store_id, store_name, latitude, longitude, weekly_footfall, 
+           age_range, gender_distribution, parent_company, sub_category, contact_number
     FROM RME.tb_Mall_Stores
     """
     data = pd.read_sql(query, conn)
@@ -247,54 +246,64 @@ def range_based_clusters():
         # Fetch data from the database
         data = fetch_data()
 
-        # Define ranges for clustering
         if cluster_by == 'weekly_footfall':
+            # Define footfall clusters
             ranges = {
-                "Low": (0, 5000),
-                "Medium": (5000, 8000),
-                "High": (8000, float('inf'))
+                "Low Footfall (<5000)": lambda x: x < 5000,
+                "Medium Footfall (5000-8000)": lambda x: 5000 <= x <= 8000,
+                "High Footfall (>8000)": lambda x: x > 8000
             }
             column = 'weekly_footfall'
+
         elif cluster_by == 'age_range':
-             ranges = {
+            # Define age_range clusters
+            ranges = {
                 "Young Adults (10-35 years)": ["10-35 years", "18-45 years"],
                 "Middle-Aged (15-50 years)": ["15-50 years", "18-50 years", "25-50 years"],
                 "Older Adults (15-65 years)": ["15-65 years", "25-65 years"],
                 "Families with Children": ["Families with children"]
-             }
-             column = 'age_range'
+            }
+            column = 'age_range'
+
         elif cluster_by == 'gender_distribution':
+            # Define gender distribution clusters
             ranges = {
-                "Male-Dominated": "Male-dominated",
-                "Female-Dominated": "Female-dominated",
-                "Balanced": "Balanced"
+                "Balanced": ["Balanced"],
+                "Female-Dominated": ["Female-dominated"],
+                "Male-Dominated": ["Male-dominated"]
             }
             column = 'gender_distribution'
 
-        # Assign clusters based on ranges
+        # Assign clusters
         data['cluster'] = None
-        for cluster_name, cluster_range in ranges.items():
-            if cluster_by == 'weekly_footfall':
-                data.loc[(data[column] >= cluster_range[0]) & (data[column] < cluster_range[1]), 'cluster'] = cluster_name
-            else:
-                data.loc[data[column] == cluster_range, 'cluster'] = cluster_name
+        if cluster_by == 'weekly_footfall':
+            for cluster_name, condition in ranges.items():
+                data.loc[data[column].apply(lambda x: condition(x)), 'cluster'] = cluster_name
+        else:
+            for cluster_name, cluster_values in ranges.items():
+                data.loc[data[column].apply(lambda x: x in cluster_values if pd.notnull(x) else False), 'cluster'] = cluster_name
+
+        # Check for empty clusters
+        if data['cluster'].isnull().all():
+            return jsonify({"error": "No data matches the specified ranges. Please verify the data or adjust the ranges."}), 404
 
         # Prepare the response
         clusters = []
-        unique_clusters = data['cluster'].unique()
+        unique_clusters = data['cluster'].dropna().unique()
         for cluster_name in unique_clusters:
             cluster_data = data[data['cluster'] == cluster_name]
             clusters.append({
                 "cluster_name": cluster_name,
                 "centroid_latitude": cluster_data['latitude'].mean(),
                 "centroid_longitude": cluster_data['longitude'].mean(),
-                "stores": cluster_data.to_dict(orient='records')  # Include all store attributes
+                "stores": cluster_data.to_dict(orient='records')
             })
 
         return jsonify({"clusters": clusters})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/store_relations', methods=['GET'])
 def get_store_relations():
