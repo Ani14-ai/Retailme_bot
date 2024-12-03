@@ -383,6 +383,41 @@ def get_store_relations():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/crowd_pullers', methods=['GET'])
+def get_crowd_pullers():
+    """Fetches all stores with 'Anchor' in the sub_category."""
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Query to fetch all attributes for crowd-puller stores
+        query = """
+        SELECT *
+        FROM RME.tb_Mall_Stores
+        WHERE sub_category LIKE '%Anchor%'
+        """
+
+        cursor.execute(query)
+
+        # Fetch column names dynamically
+        columns = [column[0] for column in cursor.description]
+
+        # Fetch results and structure them as a list of dictionaries
+        stores = []
+        for row in cursor.fetchall():
+            stores.append(dict(zip(columns, row)))
+
+        # Close the connection
+        cursor.close()
+        conn.close()
+
+        # Return the list of stores as JSON
+        return jsonify({"crowd_pullers": stores})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/verify-token', methods=['POST'])
 def verify_token():
     """
