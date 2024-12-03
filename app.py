@@ -10,7 +10,6 @@ import random
 import requests
 import jwt
 import pandas as pd
-from sklearn.cluster import KMeans
 from apscheduler.schedulers.background import BackgroundScheduler
 from openai import OpenAI
 from datetime import datetime, timezone, timedelta
@@ -223,68 +222,72 @@ def get_stores_by_location():
         return jsonify({"error": str(e)}), 500
 
 def fetch_data():
-    """Fetches data from the database for clustering."""
+    """Fetches data from the database."""
     conn = get_db_connection()
     query = """
-    SELECT store_id, latitude, longitude, weekly_footfall, 
-           CASE 
-               WHEN age_range LIKE '%18-45%' THEN 1 
-               WHEN age_range LIKE '%25-65%' THEN 2 
-               ELSE 3 END AS age_range_group,
-           CASE 
-               WHEN ethnicity LIKE '%Emirati%' THEN 1 
-               WHEN ethnicity LIKE '%Western%' THEN 2 
-               ELSE 3 END AS ethnicity_group
+    SELECT store_id, location_id, store_name, category, sub_category, floor, state_id, country_id,
+           district_id, neighborhood_id, parent_company, latitude, longitude, contact_number, 
+           weekly_footfall, age_range, gender_distribution, created_at, modified_at, is_deleted
     FROM RME.tb_Mall_Stores
     """
     data = pd.read_sql(query, conn)
     conn.close()
     return data
 
-@app.route('/api/clusters', methods=['GET'])
-def get_clusters():
-    """Generates clusters based on the requested parameter."""
+@app.route('/api/range_clusters', methods=['GET'])
+def range_based_clusters():
+    """Clusters stores based on predefined ranges for a selected parameter."""
     try:
         # Fetch the clustering parameter from the request
         cluster_by = request.args.get('cluster_by')
-        num_clusters = int(request.args.get('num_clusters', 5))  # Default to 5 clusters
 
-        if cluster_by not in ['weekly_footfall', 'age_range', 'ethnicity']:
-            return jsonify({"error": "Invalid cluster_by parameter. Choose from 'weekly_footfall', 'age_range', or 'ethnicity'"}), 400
+        if cluster_by not in ['weekly_footfall', 'age_range', 'gender_distribution']:
+            return jsonify({"error": "Invalid cluster_by parameter. Choose from 'weekly_footfall', 'age_range', or 'gender_distribution'"}), 400
 
         # Fetch data from the database
         data = fetch_data()
 
-        # Select features based on the parameter
+        # Define ranges for clustering
         if cluster_by == 'weekly_footfall':
-            features = data[['latitude', 'longitude', 'weekly_footfall']]
+            ranges = {
+                "Low": (0, 5000),
+                "Medium": (5000, 8000),
+                "High": (8000, float('inf'))
+            }
+            column = 'weekly_footfall'
         elif cluster_by == 'age_range':
-            features = data[['latitude', 'longitude', 'age_range_group']]
-        elif cluster_by == 'ethnicity':
-            features = data[['latitude', 'longitude', 'ethnicity_group']]
+            ranges = {
+                "Young Adults": "18-30",
+                "Middle-Aged": "31-50",
+                "Older Adults": "51+"
+            }
+            column = 'age_range'
+        elif cluster_by == 'gender_distribution':
+            ranges = {
+                "Male-Dominated": "Male-dominated",
+                "Female-Dominated": "Female-dominated",
+                "Balanced": "Balanced"
+            }
+            column = 'gender_distribution'
 
-        # Handle missing values by filling with the mean
-        features.fillna(features.mean(), inplace=True)
-
-        # Normalize the feature values
-        features_normalized = (features - features.mean()) / features.std()
-
-        # Perform clustering
-        kmeans = KMeans(n_clusters=num_clusters, random_state=42)
-        data['cluster'] = kmeans.fit_predict(features_normalized)
-
-        # Get the centroids
-        centroids = kmeans.cluster_centers_
-        centroids_unnormalized = centroids * features.std().values + features.mean().values
+        # Assign clusters based on ranges
+        data['cluster'] = None
+        for cluster_name, cluster_range in ranges.items():
+            if cluster_by == 'weekly_footfall':
+                data.loc[(data[column] >= cluster_range[0]) & (data[column] < cluster_range[1]), 'cluster'] = cluster_name
+            else:
+                data.loc[data[column] == cluster_range, 'cluster'] = cluster_name
 
         # Prepare the response
         clusters = []
-        for i in range(num_clusters):
+        unique_clusters = data['cluster'].unique()
+        for cluster_name in unique_clusters:
+            cluster_data = data[data['cluster'] == cluster_name]
             clusters.append({
-                "cluster_id": i,
-                "centroid_latitude": centroids_unnormalized[i, 0],
-                "centroid_longitude": centroids_unnormalized[i, 1],
-                "stores": data[data['cluster'] == i][['store_id', 'latitude', 'longitude']].to_dict(orient='records')
+                "cluster_name": cluster_name,
+                "centroid_latitude": cluster_data['latitude'].mean(),
+                "centroid_longitude": cluster_data['longitude'].mean(),
+                "stores": cluster_data.to_dict(orient='records')  # Include all store attributes
             })
 
         return jsonify({"clusters": clusters})
