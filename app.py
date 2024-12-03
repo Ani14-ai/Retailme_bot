@@ -256,11 +256,12 @@ def range_based_clusters():
             }
             column = 'weekly_footfall'
         elif cluster_by == 'age_range':
-            ranges = {
-                "Young Adults": "18-30",
-                "Middle-Aged": "31-50",
-                "Older Adults": "51+"
-            }
+             ranges = {
+                "Young Adults (10-35 years)": ["10-35 years", "18-45 years"],
+                "Middle-Aged (15-50 years)": ["15-50 years", "18-50 years", "25-50 years"],
+                "Older Adults (15-65 years)": ["15-65 years", "25-65 years"],
+                "Families with Children": ["Families with children"]
+             }
             column = 'age_range'
         elif cluster_by == 'gender_distribution':
             ranges = {
