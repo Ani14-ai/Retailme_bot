@@ -287,15 +287,26 @@ def range_based_clusters():
         if data['cluster'].isnull().all():
             return jsonify({"error": "No data matches the specified ranges. Please verify the data or adjust the ranges."}), 404
 
-        # Prepare the response
+        # Handle NaN values and prepare the response
+        data = data.fillna(value={
+            "latitude": None,
+            "longitude": None,
+            "contact_number": None,
+            "parent_company": None,
+            "age_range": None,
+            "gender_distribution": None,
+            "weekly_footfall": None,
+            "sub_category": None
+        })
+
         clusters = []
         unique_clusters = data['cluster'].dropna().unique()
         for cluster_name in unique_clusters:
             cluster_data = data[data['cluster'] == cluster_name]
             clusters.append({
                 "cluster_name": cluster_name,
-                "centroid_latitude": cluster_data['latitude'].mean(),
-                "centroid_longitude": cluster_data['longitude'].mean(),
+                "centroid_latitude": cluster_data['latitude'].mean() if not cluster_data['latitude'].isnull().all() else None,
+                "centroid_longitude": cluster_data['longitude'].mean() if not cluster_data['longitude'].isnull().all() else None,
                 "stores": cluster_data.to_dict(orient='records')
             })
 
@@ -303,6 +314,7 @@ def range_based_clusters():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/api/store_relations', methods=['GET'])
