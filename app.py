@@ -288,7 +288,7 @@ def range_based_clusters():
             return jsonify({"error": "No data matches the specified ranges. Please verify the data or adjust the ranges."}), 404
 
         # Handle NaN values and prepare the response
-        data = data.fillna(value={
+        fill_values = {
             "latitude": None,
             "longitude": None,
             "contact_number": None,
@@ -297,7 +297,8 @@ def range_based_clusters():
             "gender_distribution": None,
             "weekly_footfall": None,
             "sub_category": None
-        })
+        }
+        data = data.fillna(value=fill_values)
 
         clusters = []
         unique_clusters = data['cluster'].dropna().unique()
@@ -314,6 +315,7 @@ def range_based_clusters():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 
