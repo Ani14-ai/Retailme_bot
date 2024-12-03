@@ -676,7 +676,7 @@ def login():
         connection = pyodbc.connect(DB_CONNECTION_STRING)
         cursor = connection.cursor()
 
-        # Fetch user details and validate domain
+        # Check if the email exists
         cursor.execute("""
             SELECT 
                 u.user_id, 
@@ -684,28 +684,31 @@ def login():
                 u.temporary_license_key, 
                 u.license_expiry_date,
                 u.DomainId,
-                d.DomainId AS ValidDomainId
+                d.IsActive, 
+                d.IsDeleted
             FROM 
                 [RetailMEApp_DB].[dbo].[tb_MS_User] u
-            INNER JOIN 
+            LEFT JOIN 
                 [RetailMEApp_DB].[dbo].[tb_MS_Domain] d 
             ON 
                 u.DomainId = d.DomainId
             WHERE 
-                u.email = ? 
-                AND d.IsActive = 1    -- Domain is inactive
-                AND d.IsDeleted = 0   -- Domain is not deleted
+                u.email = ?
         """, (email,))
         user = cursor.fetchone()
 
         if not user:
-            return jsonify({"error": "Invalid email or domain conditions not met."}), 401
+            return jsonify({"error": "Email not found. Please register first."}), 401
 
-        user_id, password_hash, temporary_license_key, license_expiry_date, domain_id, valid_domain_id = user
+        user_id, password_hash, temporary_license_key, license_expiry_date, domain_id, domain_is_active, domain_is_deleted = user
 
-        # Ensure that the DomainId is not null
-        if not domain_id or not valid_domain_id:
-            return jsonify({"error": "Invalid or missing domain association. Please contact support."}), 403
+        # Check domain conditions
+        if not domain_id or domain_is_active != 1 or domain_is_deleted != 0:
+            return jsonify({"error": "Domain is either inactive or deleted. Please contact support."}), 403
+
+        # Check if license is expired
+        if license_expiry_date < datetime.now():
+            return jsonify({"error": "License expired. Please contact support to renew your subscription."}), 403
 
         # Check if password is not set
         if not password_hash:
@@ -714,10 +717,6 @@ def login():
         # Verify the provided password
         if not bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8')):
             return jsonify({"error": "Invalid password."}), 401
-
-        # Check if the license has expired
-        if license_expiry_date < datetime.now():
-            return jsonify({"error": "License expired. Please contact support to renew your subscription."}), 403
 
         # Generate JWT token
         token = generate_jwt(user_id)
@@ -731,7 +730,7 @@ def login():
     except Exception as e:
         logging.error(f"Error during login: {e}")
         return jsonify({"error": "An unexpected error occurred. Please try again later."}), 500
-
+        
 @app.route('/api/preferences', methods=['POST'])
 def save_preferences():
     """
