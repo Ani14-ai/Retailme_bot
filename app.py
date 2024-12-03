@@ -414,15 +414,29 @@ def register_user():
     name = data.get('name')
     email = data.get('email')
     phone_number = data.get('phone_number')
-    domain = email.split('@')[-1]
+
     if not name or not email or not phone_number:
         return jsonify({"error": "Name, email, and phone number are required."}), 400
-    if domain in BLACKLISTED_DOMAINS:
-            return jsonify({"error": "Personal email addresses (e.g., Gmail, Yahoo) are not allowed."}), 505
+
+    # Extract domain from email
+    domain = email.split('@')[-1]
+
     try:
-        
         connection = pyodbc.connect(DB_CONNECTION_STRING)
         cursor = connection.cursor()
+
+        # Validate domain against tb_MS_Domain
+        cursor.execute("""
+            SELECT DomainId 
+            FROM [RetailMEApp_DB].[dbo].[tb_MS_Domain] 
+            WHERE DomainName = ? AND IsActive = 1 AND IsDeleted = 0
+        """, (domain,))
+        domain_record = cursor.fetchone()
+
+        if not domain_record:
+            return jsonify({"error": "The email domain is either inactive, deleted, or not recognized."}), 400
+
+        domain_id = domain_record[0]  # Extract the DomainId
 
         # Check if email already exists
         cursor.execute("SELECT COUNT(*) FROM tb_MS_User WHERE email = ?", (email,))
@@ -435,7 +449,17 @@ def register_user():
         otp_expiry = datetime.now() + timedelta(minutes=5)
 
         # Insert OTP into tb_UserOTP
-        cursor.execute("INSERT INTO tb_UserOTP (email, otp, expiry_at) VALUES (?, ?, ?)", (email, otp, otp_expiry))
+        cursor.execute("""
+            INSERT INTO tb_UserOTP (email, otp, expiry_at) 
+            VALUES (?, ?, ?)
+        """, (email, otp, otp_expiry))
+
+        # Insert new user into tb_MS_User with DomainId
+        cursor.execute("""
+            INSERT INTO tb_MS_User (name, email, phone_number, DomainId) 
+            VALUES (?, ?, ?, ?)
+        """, (name, email, phone_number, domain_id))
+
         connection.commit()
 
         # Send OTP Email
@@ -458,10 +482,11 @@ def register_user():
         """
         send_email(email, "Your OTP Code", otp_email_body)
 
-        return jsonify({"message": "OTP sent successfully. Check your email for validation."}), 200
+        return jsonify({"message": "User registered successfully. OTP sent for email validation."}), 200
+
     except Exception as e:
         logging.error(f"Error during registration: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An internal server error occurred."}), 500
 
 
 @app.route('/api/validate-otp', methods=['POST'])
@@ -527,7 +552,7 @@ def validate_otp():
         cursor.execute("""
             INSERT INTO tb_UserCredits (user_id, available_credits, credit_reset_date)
             VALUES (?, ?, GETDATE())
-        """, (user_id, 700))
+        """, (user_id, 7812))
         connection.commit()
         # Send Welcome Email
         welcome_email_body = f"""
@@ -601,21 +626,41 @@ def login():
 
     if not email or not password:
         return jsonify({"error": "Email and password are required."}), 400
+
     try:
         connection = pyodbc.connect(DB_CONNECTION_STRING)
         cursor = connection.cursor()
-        # Fetch user details
+
+        # Fetch user details and validate domain
         cursor.execute("""
-            SELECT user_id, password_hash, temporary_license_key, license_expiry_date
-            FROM tb_MS_User 
-            WHERE email = ?
+            SELECT 
+                u.user_id, 
+                u.password_hash, 
+                u.temporary_license_key, 
+                u.license_expiry_date,
+                u.DomainId,
+                d.DomainId AS ValidDomainId
+            FROM 
+                [RetailMEApp_DB].[dbo].[tb_MS_User] u
+            INNER JOIN 
+                [RetailMEApp_DB].[dbo].[tb_MS_Domain] d 
+            ON 
+                u.DomainId = d.DomainId
+            WHERE 
+                u.email = ? 
+                AND d.IsActive = 1    -- Domain is inactive
+                AND d.IsDeleted = 0   -- Domain is not deleted
         """, (email,))
         user = cursor.fetchone()
 
         if not user:
-            return jsonify({"error": "Invalid email. Please register first."}), 401
+            return jsonify({"error": "Invalid email or domain conditions not met."}), 401
 
-        user_id, password_hash, temporary_license_key, license_expiry_date = user
+        user_id, password_hash, temporary_license_key, license_expiry_date, domain_id, valid_domain_id = user
+
+        # Ensure that the DomainId is not null
+        if not domain_id or not valid_domain_id:
+            return jsonify({"error": "Invalid or missing domain association. Please contact support."}), 403
 
         # Check if password is not set
         if not password_hash:
@@ -628,6 +673,7 @@ def login():
         # Check if the license has expired
         if license_expiry_date < datetime.now():
             return jsonify({"error": "License expired. Please contact support to renew your subscription."}), 403
+
         # Generate JWT token
         token = generate_jwt(user_id)
         return jsonify({
@@ -636,10 +682,10 @@ def login():
             "license_key": temporary_license_key,
             "user_id": user_id
         }), 200
+
     except Exception as e:
         logging.error(f"Error during login: {e}")
-        return jsonify({"error": str(e)}), 500
-
+        return jsonify({"error": "An unexpected error occurred. Please try again later."}), 500
 
 @app.route('/api/preferences', methods=['POST'])
 def save_preferences():
@@ -756,17 +802,20 @@ def get_credits():
 
 def reduce_credits():
     """
-    Reduce credits by 100 for all users whose credit_reset_date is before today.
+    Reduce credits by a random amount (500-1000) for all users whose credit_reset_date is before today.
     """
     try:
         connection = pyodbc.connect(DB_CONNECTION_STRING)
         cursor = connection.cursor()
 
+        # Generate a random deduction amount
+        random_reduction = random.randint(500, 1000)
+
         # Reduce credits for users who still have credits
-        cursor.execute("""
+        cursor.execute(f"""
             UPDATE tb_UserCredits
             SET available_credits = CASE 
-                WHEN available_credits >= 100 THEN available_credits - 100
+                WHEN available_credits >= {random_reduction} THEN available_credits - {random_reduction}
                 ELSE 0
             END,
             credit_reset_date = GETDATE(),
@@ -774,7 +823,7 @@ def reduce_credits():
             WHERE credit_reset_date < CAST(GETDATE() AS DATE)
         """)
         connection.commit()
-        logging.info("Daily credits reduction completed successfully.")
+        logging.info(f"Daily credits reduction completed successfully with random deduction of {random_reduction} credits.")
     except Exception as e:
         logging.error(f"Error during daily credits reduction: {e}")
 
@@ -789,7 +838,6 @@ def start_scheduler():
     if not scheduler.running:
         scheduler.start()
         logging.info("Scheduler started successfully.")
-
 # Call the scheduler during app initialization
 start_scheduler()
 
