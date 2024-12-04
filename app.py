@@ -247,7 +247,7 @@ def range_based_clusters():
         data = fetch_data()
 
         # Remove rows with NaN latitude or longitude
-        data = data.dropna(subset=['latitude', 'longitude'])
+        data = data.dropna(subset=['latitude', 'longitude', 'weekly_footfall'])
 
         if cluster_by == 'weekly_footfall':
             # Define footfall clusters
