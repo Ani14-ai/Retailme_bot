@@ -229,7 +229,7 @@ def fetch_data():
     query = """
     SELECT store_id, store_name, latitude, longitude, weekly_footfall, 
            age_range, gender_distribution, parent_company, sub_category, 
-           contact_number, ethnicity
+           contact_number, ethnicity, Qr_Link
     FROM RME.tb_Mall_Stores
     """
     data = pd.read_sql(query, conn)
@@ -249,7 +249,7 @@ def range_based_clusters():
         # Fetch data from the database
         data = fetch_data()
 
-        # Remove rows with NaN latitude or longitude
+        # Remove rows with NaN latitude, longitude, or weekly_footfall
         data = data.dropna(subset=['latitude', 'longitude', 'weekly_footfall'])
 
         if cluster_by == 'weekly_footfall':
@@ -302,7 +302,7 @@ def range_based_clusters():
                 "cluster_name": cluster_name,
                 "centroid_latitude": cluster_data['latitude'].mean(),
                 "centroid_longitude": cluster_data['longitude'].mean(),
-                "stores": cluster_data.to_dict(orient='records')  # Includes ethnicity and all attributes
+                "stores": cluster_data.to_dict(orient='records')  # Includes Qr_Link and all attributes
             })
 
         return jsonify({"clusters": clusters})
