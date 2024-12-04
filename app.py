@@ -208,8 +208,8 @@ def get_stores_by_location():
                 "contact_number": row[7],
                 "weekly_footfall": row[8],
                 "ethnicity": row[9],
-                "gender_distribution": row[10]
-                "Qr_Link":row[11]
+                "gender_distribution": row[10],
+                "Qr_Link": row[11]
             })
 
         # Close the connection
@@ -221,6 +221,7 @@ def get_stores_by_location():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 def fetch_data():
     """Fetches the required data from the database."""
