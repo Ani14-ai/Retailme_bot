@@ -226,7 +226,8 @@ def fetch_data():
     conn = get_db_connection()
     query = """
     SELECT store_id, store_name, latitude, longitude, weekly_footfall, 
-           age_range, gender_distribution, parent_company, sub_category, contact_number
+           age_range, gender_distribution, parent_company, sub_category, 
+           contact_number, ethnicity
     FROM RME.tb_Mall_Stores
     """
     data = pd.read_sql(query, conn)
@@ -299,7 +300,7 @@ def range_based_clusters():
                 "cluster_name": cluster_name,
                 "centroid_latitude": cluster_data['latitude'].mean(),
                 "centroid_longitude": cluster_data['longitude'].mean(),
-                "stores": cluster_data.to_dict(orient='records')
+                "stores": cluster_data.to_dict(orient='records')  # Includes ethnicity and all attributes
             })
 
         return jsonify({"clusters": clusters})
