@@ -977,7 +977,7 @@ def get_email_template():
                 color: #333333;
             }
             .email-container {
-                max-width: 800px;
+               
                 margin: 20px auto;
                 background: #ffffff;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -1026,7 +1026,7 @@ def get_email_template():
                 <p><strong>Team WaysAhead</strong></p>
             </div>
             <div class="email-footer">
-                <p>If you need further assistance, contact us at <a href="mailto:support@waysaheadglobal.com">support@waysaheadglobal.com</a>.</p>
+                <p>For further queries and support, please write to us at: <a href="mailto:corporate@waysaheadglobal.com">corporate@waysaheadglobal.com</a>.</p>
             </div>
         </div>
     </body>
