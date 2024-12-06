@@ -957,6 +957,188 @@ def upload_file():
             return jsonify({"error": str(e)}), 500
 
     return jsonify({"error": f"Invalid file type. Only {', '.join(ALLOWED_EXTENSIONS)} are allowed."}), 400
+# URL for the attachment file
+ATTACHMENT_URL = "https://geo.waysaheadglobal.com/PricingModel.pdf"
+ATTACHMENT_FILENAME = "PricingModel.pdf"
+
+
+def get_email_template():
+    """Return the email template for the quote request."""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f9f9f9;
+                color: #333333;
+            }
+            .email-container {
+                max-width: 800px;
+                margin: 20px auto;
+                background: #ffffff;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                overflow: hidden;
+            }
+            .email-header {
+                background-color: #2c7ae8;
+                padding: 20px;
+                color: white;
+                text-align: center;
+            }
+            .email-header h1 {
+                margin: 0;
+                font-size: 24px;
+            }
+            .email-body {
+                padding: 20px;
+                line-height: 1.6;
+            }
+            .email-body p {
+                margin: 10px 0;
+            }
+            .email-body .highlight {
+                font-weight: bold;
+                color: #2c7ae8;
+            }
+            .email-footer {
+                padding: 15px;
+                text-align: center;
+                font-size: 14px;
+                color: #666;
+            }
+            .email-footer a {
+                color: #2c7ae8;
+                text-decoration: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="email-container">
+            <div class="email-body">
+                <p>Dear <span class="highlight">{{user_name}}</span>,</p>
+                <p>Thank you for requesting a quote. Please find the attached document containing the details you requested.</p>
+                <p>Our team is always here to help you make the best decisions for your business. If you have any further queries, feel free to reach out to us.</p>
+                <p>Best regards,</p>
+                <p><strong>Team WaysAhead</strong></p>
+            </div>
+            <div class="email-footer">
+                <p>If you need further assistance, contact us at <a href="mailto:support@waysaheadglobal.com">support@waysaheadglobal.com</a>.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+
+def download_attachment():
+    """Download the PricingModel.pdf file."""
+    try:
+        response = requests.get(ATTACHMENT_URL)
+        response.raise_for_status()
+        with open(ATTACHMENT_FILENAME, "wb") as file:
+            file.write(response.content)
+        logging.info(f"Attachment downloaded: {ATTACHMENT_FILENAME}")
+        return ATTACHMENT_FILENAME
+    except Exception as e:
+        logging.error(f"Failed to download attachment: {e}")
+        raise
+
+
+def send_email_with_attachment(recipient, subject, body, file_path):
+    """
+    Send an email with an attachment using the provided email API.
+    """
+    try:
+        # Ensure the file exists
+        if not os.path.exists(file_path):
+            logging.error(f"Attachment not found: {file_path}")
+            return {"error": "Attachment file not found."}, 400
+        
+        with open(file_path, "rb") as attachment:
+            # Prepare the attachment for the email API
+            files = {"Attachment": (os.path.basename(file_path), attachment, 'application/pdf')}
+            payload = {
+                'Recipient': recipient,
+                'Subject': subject,
+                'Body': body,
+                'ApiKey': EMAIL_API_KEY
+            }
+
+            # Send email with attachment
+            response = requests.post(EMAIL_API_URL, data=payload, files=files)
+            response.raise_for_status()
+            logging.info(f"Email sent successfully to {recipient} with attachment {file_path}")
+            return {"message": f"Email sent to {recipient}"}, 200
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request failed: {e}")
+        return {"error": f"Failed to send email: {str(e)}"}, 500
+    except Exception as e:
+        logging.error(f"An unexpected error occurred: {e}")
+        return {"error": f"Unexpected error: {str(e)}"}, 500
+
+import tempfile
+
+@app.route('/api/get-quote-price', methods=['POST'])
+def get_quote_price():
+    """Send quote to user and additional recipient."""
+    user_id = authenticate()
+    try:
+        # File URL (this should be dynamic or passed from the request if needed)
+        file_url = "https://geo.waysaheadglobal.com/PricingModel.pdf"
+        
+        # Download and save the file to a temporary directory
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+            response = requests.get(file_url)
+            response.raise_for_status()  # Ensure the download was successful
+            temp_file.write(response.content)
+            temp_file_path = temp_file.name  # Get the local path to the downloaded file
+        
+        logging.info(f"File downloaded and saved at: {temp_file_path}")
+        
+        # Fetch user email and name from the database
+        connection = pyodbc.connect(DB_CONNECTION_STRING)
+        cursor = connection.cursor()
+        cursor.execute("SELECT email, name FROM [RetailMEApp_DB].[dbo].[tb_MS_User] WHERE user_id = ?", (user_id,))
+        user_data = cursor.fetchone()
+        if not user_data:
+            return jsonify({"error": "User email or name not found."}), 404
+
+        user_email, user_name = user_data
+
+        # Personalize the email body with the user's name
+        email_body = get_email_template().replace("{{user_name}}", user_name)
+
+        # Send email to logged-in user
+        response_user = send_email_with_attachment(user_email, "Your Requested Quote", email_body, temp_file_path)
+        if "error" in response_user:
+            return jsonify(response_user), 500
+
+        # Send email to additional recipient
+        response_recipient = send_email_with_attachment(
+            "corporate@waysaheadglobal.com", 
+            "Requested Quote (Duplicate)", 
+            email_body.replace("{{user_name}}", "Corporate WaysAhead"),  # Replace with fallback if necessary
+            temp_file_path
+        )
+        if "error" in response_recipient:
+            return jsonify(response_recipient), 500
+
+        return jsonify({"message": "Quote sent successfully to both recipients."}), 200
+    except requests.exceptions.RequestException as e:
+        logging.error(f"File download failed: {e}")
+        return jsonify({"error": "Failed to download the file."}), 500
+    except Exception as e:
+        logging.error(f"Error in get_quote_price: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        # Clean up the temporary file after use
+        if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+            logging.info(f"Temporary file removed: {temp_file_path}")
 
 
 
