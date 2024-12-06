@@ -902,6 +902,65 @@ def health_check():
 
 
 
+# File storage paths
+UPLOAD_ROOT = os.path.join(os.getcwd(), "Uploads", "Data", "Ingest")
+os.makedirs(UPLOAD_ROOT, exist_ok=True)
+
+ALLOWED_EXTENSIONS = {'json', 'xml', 'xlsx'}
+
+# Helper function to check allowed file types
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    """
+    API to upload files and store metadata in the database.
+    """
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    if file and allowed_file(file.filename):
+        try:
+            # Extract file details
+            filename = file.filename
+            file_extension = filename.rsplit('.', 1)[1].lower()
+            file_size = len(file.read())  # Get file size in bytes
+            file.seek(0)  # Reset file pointer for saving
+            user_id = request.form.get('uploaded_by')  # Fetch user ID from form data
+
+            # Ensure user_id is provided
+            if not user_id:
+                return jsonify({"error": "UploadedBy (user_id) is required"}), 400
+
+            # Generate a unique file path
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            saved_file_path = os.path.join(UPLOAD_ROOT, f"{timestamp}_{filename}")
+            file.save(saved_file_path)  # Save the file
+
+            # Insert file details into the database
+            connection = pyodbc.connect(DB_CONNECTION_STRING)
+            cursor = connection.cursor()
+            cursor.execute("""
+                INSERT INTO [RetailMEApp_DB].[dbo].[tb_MS_File_Upload] 
+                (FileName, FilePath, FileType, FileSize, UploadedBy, UploadDate)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (filename, saved_file_path, file_extension, file_size, user_id, datetime.now()))
+            connection.commit()
+
+            return jsonify({"message": "File uploaded successfully", "file_path": saved_file_path}), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    return jsonify({"error": f"Invalid file type. Only {', '.join(ALLOWED_EXTENSIONS)} are allowed."}), 400
+
+
+
+
 
 #BOT
 def initialize_vector_store():
