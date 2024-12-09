@@ -190,7 +190,8 @@ def get_stores_by_location():
         stores_query = """
         SELECT 
             store_id, store_name, latitude, longitude, floor, age_range, 
-            parent_company, contact_number, weekly_footfall, ethnicity, gender_distribution, Qr_Link
+            parent_company, contact_number, weekly_footfall, ethnicity, 
+            gender_distribution, Qr_Link, X_coordinate, Y_coordinate, Area
         FROM RME.tb_Mall_Stores
         WHERE location_id = ?
         """
@@ -209,7 +210,10 @@ def get_stores_by_location():
                 "weekly_footfall": row[8],
                 "ethnicity": row[9],
                 "gender_distribution": row[10],
-                "Qr_Link": row[11]
+                "Qr_Link": row[11],
+                "X_coordinate": row[12],
+                "Y_coordinate": row[13],
+                "Area": row[14]
             })
 
         # Close the connection
@@ -221,6 +225,7 @@ def get_stores_by_location():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 def fetch_data():
