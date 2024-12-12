@@ -1413,7 +1413,6 @@ def chat():
 
 
 #Recommendation Engine
-
 # Load data
 mall_data = pd.read_csv('mall.csv', encoding='latin-1')
 apparel_brands = pd.read_excel('categorized_brand_list.xlsx')
@@ -1436,15 +1435,12 @@ def preprocess_data(df, categorical_cols, numeric_cols):
     return processed_data, transformer
 
 # Fuzzy Matching for Store Names
-
-
 def find_closest_match(target_store, store_names):
     match, score = process.extractOne(target_store, store_names)
     return match
 
+# Recommendation function
 def recommend_stores(target_store, mall_data, apparel_brands, n_internal=3, n_external=2):
-    from fuzzywuzzy import process
-
     # Fuzzy matching to find the closest store
     store_names = mall_data['store_name'].values
     closest_match = find_closest_match(target_store, store_names)
@@ -1469,6 +1465,7 @@ def recommend_stores(target_store, mall_data, apparel_brands, n_internal=3, n_ex
     # Compute similarity
     similarities = cosine_similarity(target_processed, processed_data)[0]
     mall_data['similarity'] = similarities
+    mall_data['recommendation_score'] = (similarities * 100).round(2)
 
     # Internal recommendations: Filter Apparel Group brands in the mall
     apparel_in_mall = mall_data[mall_data['store_name'].isin(apparel_brands['Brand Names'])]
@@ -1476,24 +1473,24 @@ def recommend_stores(target_store, mall_data, apparel_brands, n_internal=3, n_ex
                                  .sort_values(by='similarity', ascending=False)
                                  .head(n_internal))
 
-    # External recommendations: Apparel Group brands not in the mall
     existing_brands = set(mall_data['store_name'].values)
     external_recommendations = apparel_brands[
         ~apparel_brands['Brand Names'].isin(existing_brands)
     ]
 
-    # Fallback to general Apparel Group brands if no exact matches
+    # Prioritize recommendations by category and sub-category similarity
+    target_category = target_features['category'].values[0]
+    external_recommendations = external_recommendations[
+        (external_recommendations['Category'] == target_category)
+    ].head(n_external)
+
+    # Fallback to general recommendations if no exact matches
     if external_recommendations.empty:
-        external_recommendations = apparel_brands.head(n_external)
-    else:
-        target_category = target_features['category'].values[0]
-        external_recommendations = external_recommendations[
-            external_recommendations['Category'] == target_category  # Match category
+        external_recommendations = apparel_brands[
+            ~apparel_brands['Brand Names'].isin(existing_brands)
         ].head(n_external)
 
     return internal_recommendations, external_recommendations
-
-
 
 # GPT Narrative Generation
 def generate_narrative(target_store, internal_recommendations, external_recommendations):
@@ -1502,7 +1499,7 @@ def generate_narrative(target_store, internal_recommendations, external_recommen
     # Add internal recommendations
     comparison_prompt += "Internal Recommendations (within the mall):\n"
     for _, row in internal_recommendations.iterrows():
-        comparison_prompt += (f"- {row['store_name']} (Category: {row['category']}, Floor: {row['floor']}, "
+        comparison_prompt += (f"- {row['store_name']} (Category: {row['category']}, Floor: {row['floor']}, Recommendation Score: {row['recommendation_score']}%, "
                               f"Ethnicity: {row['Ethnicity']}, Age Group: {row['Age Range']}, Footfall: {row['weekly_footfall']})\n")
 
     # Add external recommendations
@@ -1514,13 +1511,13 @@ def generate_narrative(target_store, internal_recommendations, external_recommen
     system_prompt = (
         "You are a Geo Assistant specializing in optimizing store placements within shopping malls. "
         "Based on the analysis of customer demographics, footfall patterns, and the current store ecosystem, "
-        "create a detailed and professional narrative. The narrative should:\n"
+        "create a detailed and professional narrative in Proper descriptive points. The narrative should:\n"
         "1. Explain why the recommended stores are ideal replacements for the target store.\n"
         "2. Highlight how these replacements align with customer preferences (e.g., age group, ethnicity) "
         "and the mall's current traffic flow.\n"
         "3. Discuss the potential business benefits, such as attracting new customer segments, increasing sales, or improving footfall.\n"
         "4. Use simple, actionable language that retail business owners can easily understand. Avoid mentioning numerical scores. Give your answer in a very to the point and specific manner please within 1000 tokens "
-        "such as similarity ratings and instead focus on insights and justifications. Please give in proper descriptive points."
+        "such as similarity ratings and instead focus on insights and justifications. Please give proper descriptive points for each of the recommended store."
     )
 
     response = client.chat.completions.create(
@@ -1556,11 +1553,10 @@ def recommend():
     # Response
     return jsonify({
         "target_store": target_store,
-        "internal_recommendations": internal_recommendations[['store_name', 'category', 'floor', 'similarity']].to_dict(orient='records'),
+        "internal_recommendations": internal_recommendations[['store_name', 'category', 'floor', 'recommendation_score']].to_dict(orient='records'),
         "external_recommendations": external_recommendations[['Brand Names', 'Category']].to_dict(orient='records'),
         "narrative": narrative
     })
-
 if __name__ == "__main__":
     initialize_vector_store()
     app.run(debug=True)
