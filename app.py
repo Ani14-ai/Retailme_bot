@@ -160,88 +160,72 @@ def get_locations():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/api/search-stores', methods=['GET'])
-def search_stores():
+@app.route('/api/search-store', methods=['GET'])
+def search_store():
     """
-    Search API to filter and retrieve stores grouped by category, sub_category, or parent_company.
-    """
-    try:
-        # Extract query parameters
-        category = request.args.get('category')
-        sub_category = request.args.get('sub_category')
-        parent_company = request.args.get('parent_company')
+    Search for stores based on a single input that matches category, sub_category, or parent_company.
 
-        # Establish database connection
+    Query Parameter:
+        - search (str): The search term to filter the results.
+
+    Returns:
+        - JSON response with the matching stores.
+    """
+    search_query = request.args.get('search', '').strip()
+
+    if not search_query:
+        return jsonify({"error": "The 'search' parameter is required."}), 400
+
+    try:
         connection = get_db_connection()
         cursor = connection.cursor()
 
-        # Base SQL query
+        # Query to search across category, sub_category, and parent_company
         query = """
-        SELECT TOP (1000) 
-            [location_id], [store_id], [store_name], [category], [sub_category], 
-            [floor], [state_id], [country_id], [district_id], [neighborhood_id], 
-            [parent_company], [latitude], [longitude], [contact_number], 
-            [created_at], [modified_at], [is_deleted], [weekly_footfall], 
-            [age_range], [ethnicity], [gender_distribution], [Qr_Link], 
-            [X_coordinate], [Y_coordinate], [Area]
+        SELECT TOP (1000) [location_id], [store_id], [store_name], [category], 
+               [sub_category], [floor], [state_id], [country_id], [district_id],
+               [neighborhood_id], [parent_company], [latitude], [longitude], 
+               [contact_number], [created_at], [modified_at], [is_deleted], 
+               [weekly_footfall], [age_range], [ethnicity], [gender_distribution], 
+               [Qr_Link], [X_coordinate], [Y_coordinate], [Area]
         FROM [RME].[tb_Mall_Stores]
-        WHERE is_deleted = 0
+        WHERE category LIKE ? OR sub_category LIKE ? OR parent_company LIKE ?
         """
+        # Add wildcards for partial match
+        search_term = f"%{search_query}%"
+        cursor.execute(query, (search_term, search_term, search_term))
 
-        # Add filters based on the provided query parameters
-        filters = []
-        params = []
-
-        if category:
-            filters.append("category = ?")
-            params.append(category)
-        if sub_category:
-            filters.append("sub_category = ?")
-            params.append(sub_category)
-        if parent_company:
-            filters.append("parent_company = ?")
-            params.append(parent_company)
-
-        if filters:
-            query += " AND " + " AND ".join(filters)
-
-        # Execute the query
-        cursor.execute(query, params)
         rows = cursor.fetchall()
-
-        # Column names
         columns = [column[0] for column in cursor.description]
 
-        # Convert rows to a list of dictionaries
-        stores = [dict(zip(columns, row)) for row in rows]
+        # Process the results into a structured JSON response
+        stores = [
+            dict(zip(columns, row))
+            for row in rows
+        ]
 
-        # Group results based on the search criteria
+        # Group results by their label
         grouped_results = []
-
-        if category:
-            grouped_results.append({
-                "label": "Category Name",
-                "value": category,
-                "stores": stores
-            })
-        elif sub_category:
-            grouped_results.append({
-                "label": "Sub-Category Name",
-                "value": sub_category,
-                "stores": stores
-            })
-        elif parent_company:
-            grouped_results.append({
-                "label": "Parent Company Name",
-                "value": parent_company,
-                "stores": stores
-            })
-        else:
-            grouped_results.append({
-                "label": "All Stores",
-                "value": "All",
-                "stores": stores
-            })
+        if stores:
+            grouped_results = [
+                {
+                    "label": "Category",
+                    "value": search_query,
+                    "stores": [store for store in stores if store['category'] and search_query.lower() in store['category'].lower()]
+                },
+                {
+                    "label": "Sub-Category",
+                    "value": search_query,
+                    "stores": [store for store in stores if store['sub_category'] and search_query.lower() in store['sub_category'].lower()]
+                },
+                {
+                    "label": "Parent Company",
+                    "value": search_query,
+                    "stores": [store for store in stores if store['parent_company'] and search_query.lower() in store['parent_company'].lower()]
+                }
+            ]
+            # Remove groups with no matches
+            grouped_results = [group for group in grouped_results if group['stores']]
 
         return jsonify(grouped_results), 200
 
