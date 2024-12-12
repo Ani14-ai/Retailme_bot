@@ -1533,7 +1533,7 @@ def generate_narrative(target_store, internal_recommendations, external_recommen
     return narrative
 
 # API endpoint
-@app.route('/recommend', methods=['POST'])
+@app.route('/api/recommend', methods=['POST'])
 def recommend():
     data = request.get_json()
     target_store = data.get('target_store')
