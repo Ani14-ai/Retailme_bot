@@ -10,6 +10,11 @@ import random
 import requests
 import jwt
 import pandas as pd
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import ColumnTransformer
+from fuzzywuzzy import process
 from apscheduler.schedulers.background import BackgroundScheduler
 from openai import OpenAI
 from datetime import datetime, timezone, timedelta
