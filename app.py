@@ -1412,7 +1412,154 @@ def chat():
         return jsonify({"error": str(e)}), 500
 
 
+#Recommendation Engine
 
+# Load data
+mall_data = pd.read_csv('mall.csv', encoding='latin-1')
+apparel_brands = pd.read_excel('categorized_brand_list.xlsx')
+
+# Preprocessing pipeline
+def handle_missing_data(df, categorical_cols, numeric_cols):
+    for col in categorical_cols:
+        df[col] = df[col].fillna("unknown")
+    for col in numeric_cols:
+        df[col] = df[col].fillna(0)
+    return df
+
+# Preprocessing pipeline
+def preprocess_data(df, categorical_cols, numeric_cols):
+    transformer = ColumnTransformer([
+        ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_cols),
+        ('num', StandardScaler(), numeric_cols)
+    ])
+    processed_data = transformer.fit_transform(df)
+    return processed_data, transformer
+
+# Fuzzy Matching for Store Names
+
+
+def find_closest_match(target_store, store_names):
+    match, score = process.extractOne(target_store, store_names)
+    return match
+
+def recommend_stores(target_store, mall_data, apparel_brands, n_internal=3, n_external=2):
+    from fuzzywuzzy import process
+
+    # Fuzzy matching to find the closest store
+    store_names = mall_data['store_name'].values
+    closest_match = find_closest_match(target_store, store_names)
+
+    if closest_match not in mall_data['store_name'].values:
+        return None, f"Target store '{target_store}' not found in mall data. Closest match: '{closest_match}'."
+
+    # Preprocessing
+    categorical_features = ['category', 'floor', 'Ethnicity', 'Age Range']
+    numeric_features = ['weekly_footfall']
+
+    # Handle missing values
+    mall_data = handle_missing_data(mall_data, categorical_features, numeric_features)
+
+    # Preprocess data
+    processed_data, transformer = preprocess_data(mall_data, categorical_features, numeric_features)
+
+    # Get target store features
+    target_features = mall_data[mall_data['store_name'] == closest_match]
+    target_processed = transformer.transform(target_features)
+
+    # Compute similarity
+    similarities = cosine_similarity(target_processed, processed_data)[0]
+    mall_data['similarity'] = similarities
+
+    # Internal recommendations: Filter Apparel Group brands in the mall
+    apparel_in_mall = mall_data[mall_data['store_name'].isin(apparel_brands['Brand Names'])]
+    internal_recommendations = (apparel_in_mall[apparel_in_mall['store_name'] != closest_match]
+                                 .sort_values(by='similarity', ascending=False)
+                                 .head(n_internal))
+
+    # External recommendations: Apparel Group brands not in the mall
+    existing_brands = set(mall_data['store_name'].values)
+    external_recommendations = apparel_brands[
+        ~apparel_brands['Brand Names'].isin(existing_brands)
+    ]
+
+    # Fallback to general Apparel Group brands if no exact matches
+    if external_recommendations.empty:
+        external_recommendations = apparel_brands.head(n_external)
+    else:
+        target_category = target_features['category'].values[0]
+        external_recommendations = external_recommendations[
+            external_recommendations['Category'] == target_category  # Match category
+        ].head(n_external)
+
+    return internal_recommendations, external_recommendations
+
+
+
+# GPT Narrative Generation
+def generate_narrative(target_store, internal_recommendations, external_recommendations):
+    comparison_prompt = f"Based on the analysis for replacing '{target_store}', the following recommendations are suggested:\n\n"
+
+    # Add internal recommendations
+    comparison_prompt += "Internal Recommendations (within the mall):\n"
+    for _, row in internal_recommendations.iterrows():
+        comparison_prompt += (f"- {row['store_name']} (Category: {row['category']}, Floor: {row['floor']}, "
+                              f"Ethnicity: {row['Ethnicity']}, Age Group: {row['Age Range']}, Footfall: {row['weekly_footfall']})\n")
+
+    # Add external recommendations
+    comparison_prompt += "\nExternal Recommendations (brands not in the mall):\n"
+    for _, row in external_recommendations.iterrows():
+        comparison_prompt += f"- {row['Brand Names']} (Category: {row['Category']})\n"
+
+    # GPT prompt
+    system_prompt = (
+        "You are a Geo Assistant specializing in optimizing store placements within shopping malls. "
+        "Based on the analysis of customer demographics, footfall patterns, and the current store ecosystem, "
+        "create a detailed and professional narrative. The narrative should:\n"
+        "1. Explain why the recommended stores are ideal replacements for the target store.\n"
+        "2. Highlight how these replacements align with customer preferences (e.g., age group, ethnicity) "
+        "and the mall's current traffic flow.\n"
+        "3. Discuss the potential business benefits, such as attracting new customer segments, increasing sales, or improving footfall.\n"
+        "4. Use simple, actionable language that retail business owners can easily understand. Avoid mentioning numerical scores. Give your answer in a very to the point and specific manner please within 1000 tokens "
+        "such as similarity ratings and instead focus on insights and justifications. Please give in proper descriptive points."
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo-0125",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": comparison_prompt}
+        ],
+        max_tokens=1000,
+        temperature=0.2
+    )
+    narrative = response.choices[0].message.content
+    return narrative
+
+# API endpoint
+@app.route('/recommend', methods=['POST'])
+def recommend():
+    data = request.get_json()
+    target_store = data.get('target_store')
+
+    if not target_store:
+        return jsonify({"error": "Target store is required."}), 400
+
+    # Generate recommendations
+    internal_recommendations, external_recommendations = recommend_stores(target_store, mall_data, apparel_brands)
+
+    if internal_recommendations is None:
+        return jsonify({"error": external_recommendations}), 400
+
+    # Generate narrative
+    narrative = generate_narrative(target_store, internal_recommendations, external_recommendations)
+
+    # Response
+    return jsonify({
+        "target_store": target_store,
+        "internal_recommendations": internal_recommendations[['store_name', 'category', 'floor', 'similarity']].to_dict(orient='records'),
+        "external_recommendations": external_recommendations[['Brand Names', 'Category']].to_dict(orient='records'),
+        "narrative": narrative
+    })
 
 if __name__ == "__main__":
     initialize_vector_store()
