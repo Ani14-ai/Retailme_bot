@@ -36,7 +36,7 @@ app = Flask(__name__)
 CORS(app, resources={"/api/*": {"origins": "*"}})
 # UAE timezone setup
 UAE_TZ = timezone(timedelta(hours=4))
-
+serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 # Database connection string
 DB_CONNECTION_STRING = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=103.239.89.99,21433;DATABASE=RetailMEApp_DB;UID=RetailMEAppUsr;PWD=App*Retail8usr"
 
