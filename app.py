@@ -397,9 +397,6 @@ def range_based_clusters():
 
 
 
-
-
-
 @app.route('/api/store_relations', methods=['GET'])
 def get_store_relations():
     """Fetches competitors and complementors for a store based on an exact or partial name."""
@@ -1226,6 +1223,156 @@ def get_quote_price():
         if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
             os.remove(temp_file_path)
             logging.info(f"Temporary file removed: {temp_file_path}")
+
+
+
+
+# Initialize the serializer
+serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'] = 'A6089145627GGHT')
+
+def send_password_reset_email(to_email, reset_link):
+    """
+    Sends a password reset email using the provided email API.
+    """
+    email_subject = "Password Reset Request"
+    email_body = """
+    <html>
+    <body>
+        <p>Hello,</p>
+        <p>We received a request to reset the password for your account. Please click the link below to reset your password:</p>
+        <p><a href="{reset_link}">Reset Your Password</a></p>
+        <p>The link will expire in 10 minutes.</p>
+        <p>If you did not request a password reset, please ignore this email.</p>
+        <p>Thank you,<br>The Support Team</p>
+    </body>
+    </html>"""
+    
+    try:
+        payload = {
+            'Recipient': to_email,
+            'Subject': email_subject,
+            'Body': email_body,
+            'ApiKey': EMAIL_API_KEY
+        }
+
+        response = requests.post(EMAIL_API_URL, data=payload)
+        response.raise_for_status()
+        logging.info(f"Password reset email sent to {to_email}. Response: {response.text}")
+        return True
+    except requests.exceptions.HTTPError as http_err:
+        logging.error(f"HTTP error occurred while sending email to {to_email}: {http_err}")
+    except Exception as e:
+        logging.error(f"Failed to send email to {to_email}: {e}")
+    return False
+
+
+@app.route('/api/forgot-password', methods=['POST'])
+def forgot_password():
+    data = request.json
+    required_fields = ['email']
+    missing_fields = [field for field in required_fields if not data.get(field)]
+
+    if missing_fields:
+        return jsonify(MESSAGES['missing_fields'](missing_fields)), 422
+
+    email = data['email']
+    try:
+        connection = pyodbc.connect(DB_CONNECTION_STRING)
+        cursor = connection.cursor()
+
+        cursor.execute("SELECT user_id FROM tb_MS_User WHERE email = ?", (email,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify(MESSAGES['user_not_found']), 404
+
+        user_id = user[0]
+        reset_token = serializer.dumps({'user_id': user_id, 'email': email}, salt='password-reset')
+        token_expiry = datetime.now() + timedelta(minutes=10)
+
+        cursor.execute(
+            """
+            INSERT INTO tb_PasswordResetTokens (email, reset_token, expiry_at, is_used)
+            VALUES (?, ?, ?, ?)
+            """, (email, reset_token, token_expiry, 0)
+        )
+        connection.commit()
+
+        reset_link = f"{request.host_url}reset-password?token={reset_token}"
+        if not send_password_reset_email(email, reset_link):
+            return jsonify({"error": "Failed to send the password reset email."}), 500
+
+        return jsonify({"message": "Password reset link sent to your email."}), 200
+    except Exception as e:
+        logging.error(f"Error during forgot password request: {e}")
+        return jsonify(MESSAGES['error_generic']), 500
+    finally:
+        if connection:
+            connection.close()
+
+
+@app.route('/api/reset-password', methods=['POST'])
+def reset_password():
+    data = request.json
+    required_fields = ['token', 'new_password', 'confirm_password']
+    missing_fields = [field for field in required_fields if not data.get(field)]
+
+    if missing_fields:
+        return jsonify(MESSAGES['missing_fields'](missing_fields)), 422
+
+    token = data['token']
+    new_password = data['new_password']
+    confirm_password = data['confirm_password']
+
+    if new_password != confirm_password:
+        return jsonify({"error": "Passwords do not match."}), 422
+
+    try:
+        user_data = serializer.loads(token, salt='password-reset', max_age=3600)
+        user_id = user_data['user_id']
+
+        connection = pyodbc.connect(DB_CONNECTION_STRING)
+        cursor = connection.cursor()
+
+        cursor.execute("SELECT is_used FROM tb_PasswordResetTokens WHERE reset_token = ?", (token,))
+        token_status = cursor.fetchone()
+        if not token_status or token_status[0]:
+            return jsonify({"error": "Token is invalid or already used."}), 400
+
+        password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        cursor.execute("UPDATE tb_MS_User SET password_hash = ? WHERE user_id = ?", (password_hash, user_id))
+        cursor.execute("UPDATE tb_PasswordResetTokens SET is_used = 1 WHERE reset_token = ?", (token,))
+        connection.commit()
+
+        return jsonify({"message": "Password has been successfully reset."}), 200
+    except SignatureExpired:
+        return jsonify({"error": "The password reset token has expired."}), 400
+    except BadSignature:
+        return jsonify({"error": "The password reset token is invalid."}), 400
+    except Exception as e:
+        logging.error(f"Error during password reset: {e}")
+        return jsonify(MESSAGES['error_generic']), 500
+    finally:
+        if connection:
+            connection.close()
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    """
+    Handles user logout by destroying the session and providing a response for local storage clearance.
+    """
+    try:
+        # Destroy the user session
+        session.clear()
+
+        # Provide a success response
+        return jsonify({
+            "message": "Logout successful. Please clear local storage on the client side."
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "error": f"An error occurred during logout: {str(e)}"
+        }), 500
 
 
 
