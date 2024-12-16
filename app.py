@@ -1226,10 +1226,6 @@ def get_quote_price():
 
 
 
-
-# Initialize the serializer
-serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'] = 'A6089145627GGHT')
-
 def send_password_reset_email(to_email, reset_link):
     """
     Sends a password reset email using the provided email API.
