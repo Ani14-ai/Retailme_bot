@@ -1698,6 +1698,27 @@ def recommend():
         "external_recommendations": external_recommendations[['Brand Names', 'Category']].to_dict(orient='records'),
         "narrative": narrative
     })
+
+
+# Function to load data from brand.json
+def load_brand_data():
+    try:
+        with open("brand.json", "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {"error": "brand.json file not found"}
+    except json.JSONDecodeError:
+        return {"error": "Error decoding JSON from brand.json"}
+
+@app.route('/api/brands', methods=['GET'])
+def get_brands():
+    """Endpoint to retrieve brand data from brand.json."""
+    data = load_brand_data()
+    if "error" in data:
+        return jsonify(data), 500
+    return jsonify(data)
+
+
 if __name__ == "__main__":
     initialize_vector_store()
     app.run(debug=True)
