@@ -1715,10 +1715,22 @@ def load_brand_data():
 def get_brands():
     """Endpoint to retrieve brand data from brand.json."""
     data = load_brand_data()
+    
     if "error" in data:
         return jsonify(data), 500
+    
+    # Get the brand query parameter (optional)
+    brand = request.args.get('brand', default=None, type=str)
+    
+    if brand:
+        # Filter the data for the specific brand if requested
+        filtered_data = [entry for entry in data["Comparison Brands"] if entry["Comparison Brand"].lower() == brand.lower()]
+        
+        if filtered_data:
+            return jsonify(filtered_data)
+        else:
+            return jsonify({"error": f"Brand '{brand}' not found"}), 404    
     return jsonify(data)
-
 
 if __name__ == "__main__":
     initialize_vector_store()
