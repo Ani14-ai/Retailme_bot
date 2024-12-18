@@ -1,0 +1,233 @@
+{
+    "Comparison Brands": [
+      {
+        "Comparison Brand": "HEMA",
+      "Brands": [
+        
+        {
+          "Brand": "La Vie En Rose",
+          "Area Sqft": 100,
+          "Ranking": 1,
+          "Mall fitment": 68.5,
+          "Customer Profile": 61.0,
+          "Purchasing Power": 64.0,
+          "Competitor Performance": 70.0,
+          "Complimentor Scoring": 68.0,
+          "Vicinity Customer Demographic": 69.5,
+          "Total": 67.67
+        },
+        {
+          "Brand": "Aldo",
+          "Area Sqft": 100,
+          "Ranking": 2,
+          "Mall fitment": 67.0,
+          "Customer Profile": 60.0,
+          "Purchasing Power": 63.5,
+          "Competitor Performance": 69.0,
+          "Complimentor Scoring": 67.5,
+          "Vicinity Customer Demographic": 68.0,
+          "Total": 66.67
+        },
+        {
+          "Brand": "Tommy Hilfiger",
+          "Area Sqft": 100,
+          "Ranking": 3,
+          "Mall fitment": 65.5,
+          "Customer Profile": 59.0,
+          "Purchasing Power": 62.0,
+          "Competitor Performance": 68.0,
+          "Complimentor Scoring": 66.5,
+          "Vicinity Customer Demographic": 67.0,
+          "Total": 65.83
+        },
+        {
+          "Brand": "Skechers",
+          "Area Sqft": 100,
+          "Ranking": 4,
+          "Mall fitment": 64.0,
+          "Customer Profile": 58.5,
+          "Purchasing Power": 60.0,
+          "Competitor Performance": 67.5,
+          "Complimentor Scoring": 65.5,
+          "Vicinity Customer Demographic": 66.0,
+          "Total": 63.92
+        },
+        {
+          "Brand": "Athletes Co",
+          "Area Sqft": 100,
+          "Ranking": 5,
+          "Mall fitment": 62.5,
+          "Customer Profile": 57.0,
+          "Purchasing Power": 59.0,
+          "Competitor Performance": 66.0,
+          "Complimentor Scoring": 64.5,
+          "Vicinity Customer Demographic": 64.5,
+          "Total": 62.92
+        },
+        {
+          "Brand": "The Children's Place",
+          "Area Sqft": 100,
+          "Ranking": 6,
+          "Mall fitment": 61.0,
+          "Customer Profile": 55.5,
+          "Purchasing Power": 58.0,
+          "Competitor Performance": 64.5,
+          "Complimentor Scoring": 63.0,
+          "Vicinity Customer Demographic": 62.0,
+          "Total": 61.00
+        },
+       
+        {
+          "Brand": "New Yorker",
+          "Area Sqft": 70.6,
+          "Ranking": 7,
+          "Mall fitment": 56.0,
+          "Customer Profile": 52.0,
+          "Purchasing Power": 55.0,
+          "Competitor Performance": 60.0,
+          "Complimentor Scoring": 58.5,
+          "Vicinity Customer Demographic": 57.5,
+          "Total": 56.50
+        },
+        {
+          "Brand": "LC Waikiki",
+          "Area Sqft": 68.9,
+          "Ranking": 8,
+          "Mall fitment": 54.0,
+          "Customer Profile": 51.5,
+          "Purchasing Power": 52.5,
+          "Competitor Performance": 58.0,
+          "Complimentor Scoring": 57.0,
+          "Vicinity Customer Demographic": 56.0,
+          "Total": 53.83
+        },
+        {
+          "Brand": "BBZ",
+          "Area Sqft": 58.4,
+          "Ranking": 9,
+          "Mall fitment": 50.5,
+          "Customer Profile": 48.5,
+          "Purchasing Power": 50.0,
+          "Competitor Performance": 53.5,
+          "Complimentor Scoring": 51.0,
+          "Vicinity Customer Demographic": 50.0,
+          "Total": 50.08
+        },
+        {
+          "Brand": "R&B",
+          "Area Sqft": 34.4,
+          "Ranking": 10,
+          "Mall fitment": 45.0,
+          "Customer Profile": 42.5,
+          "Purchasing Power": 41.5,
+          "Competitor Performance": 48.0,
+          "Complimentor Scoring": 47.0,
+          "Vicinity Customer Demographic": 46.0,
+          "Total": 43.67
+        },
+        {
+          "Brand": "SKY ZONE",
+          "Area Sqft": 23.1,
+          "Ranking": 11,
+          "Mall fitment": 38.0,
+          "Customer Profile": 41.0,
+          "Purchasing Power": 40.5,
+          "Competitor Performance": 45.0,
+          "Complimentor Scoring": 44.0,
+          "Vicinity Customer Demographic": 43.0,
+          "Total": 42.00
+        }
+      ]
+    },
+      {
+        "Comparison Brand": "CCC",
+        "Brands": [
+          {
+            "Brand": "LM Exchange",
+            "Area Sqft": 100,
+            "Ranking": 1,
+            "Mall fitment": 80.5,
+            "Customer Profile": 75.0,
+            "Purchasing Power": 78.0,
+            "Competitor Performance": 82.5,
+            "Complimentor Scoring": 79.0,
+            "Vicinity Customer Demographic": 81.0,
+            "Total": 79.33
+          },          
+           {
+            "Brand": "Athletes Co",
+            "Area Sqft": 100,
+            "Ranking": 2,
+            "Mall fitment": 58.0,
+            "Customer Profile": 54.0,
+            "Purchasing Power": 57.5,
+            "Competitor Performance": 63.5,
+            "Complimentor Scoring": 61.0,
+            "Vicinity Customer Demographic": 60.5,
+            "Total": 58.92
+          },
+          {
+            "Brand": "New Yorker",
+            "Area Sqft": 70.6,
+            "Ranking": 3,
+            "Mall fitment": 56.0,
+            "Customer Profile": 52.0,
+            "Purchasing Power": 55.0,
+            "Competitor Performance": 60.0,
+            "Complimentor Scoring": 58.5,
+            "Vicinity Customer Demographic": 57.5,
+            "Total": 56.50
+          },
+          {
+            "Brand": "LC Waikiki",
+            "Area Sqft": 68.9,
+            "Ranking": 4,
+            "Mall fitment": 54.0,
+            "Customer Profile": 51.5,
+            "Purchasing Power": 52.5,
+            "Competitor Performance": 58.0,
+            "Complimentor Scoring": 57.0,
+            "Vicinity Customer Demographic": 56.0,
+            "Total": 53.83
+          },
+          {
+            "Brand": "BBZ",
+            "Area Sqft": 58.4,
+            "Ranking": 5,
+            "Mall fitment": 50.5,
+            "Customer Profile": 48.5,
+            "Purchasing Power": 50.0,
+            "Competitor Performance": 53.5,
+            "Complimentor Scoring": 51.0,
+            "Vicinity Customer Demographic": 50.0,
+            "Total": 50.08
+          },
+          {
+            "Brand": "R&B",
+            "Area Sqft": 34.4,
+            "Ranking": 6,
+            "Mall fitment": 45.0,
+            "Customer Profile": 42.5,
+            "Purchasing Power": 41.5,
+            "Competitor Performance": 48.0,
+            "Complimentor Scoring": 47.0,
+            "Vicinity Customer Demographic": 46.0,
+            "Total": 43.67
+          },
+          {
+            "Brand": "SKY ZONE",
+            "Area Sqft": 23.1,
+            "Ranking": 7,
+            "Mall fitment": 38.0,
+            "Customer Profile": 41.0,
+            "Purchasing Power": 40.5,
+            "Competitor Performance": 45.0,
+            "Complimentor Scoring": 44.0,
+            "Vicinity Customer Demographic": 43.0,
+            "Total": 42.00
+          }
+        ]
+      }
+    ]
+  }
+  
