@@ -1762,6 +1762,60 @@ def get_states_by_country():
         if not data:
             return jsonify({"error": f"No states found for country_id {country_id}"}), 404
         
+        # Add "isActive" field based on state_name
+        for state in data:
+            if state["state_name"].lower() == "dubai":
+                state["isActive"] = "1"
+            else:
+                state["isActive"] = "0"
+        
+        return jsonify(data)
+    
+    except pyodbc.Error as e:
+        print("Database query failed:", e)
+        return jsonify({"error": "Error querying database"}), 500
+    
+    finally:
+        conn.close()
+
+@app.route('/api/locations', methods=['GET'])
+def get_locations_by_state():
+    """Endpoint to retrieve location data by state_id and location_type_id = 36."""
+    state_id = request.args.get('state_id', default=None, type=int)
+    
+    if not state_id:
+        return jsonify({"error": "Missing state_id parameter"}), 400
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    try:
+        cursor = conn.cursor()
+        # SQL query to fetch locations with state_id and location_type_id = 36
+        query = """
+        SELECT location_id, name, latitude, longitude, location_type_id, neighborhood_id, 
+               district_id, state_id, created_at, modified_at, Is_Qr, QR_link
+        FROM [RME].[tb_Location]
+        WHERE state_id = ? AND location_type_id = 36
+        """
+        cursor.execute(query, state_id)
+        
+        # Fetch all rows and format as a list of dictionaries
+        columns = [column[0] for column in cursor.description]
+        rows = cursor.fetchall()
+        data = [dict(zip(columns, row)) for row in rows]
+        
+        if not data:
+            return jsonify({"error": f"No locations found for state_id {state_id} with location_type_id 36"}), 404
+        
+        # Add "isActive" field based on the "name" field
+        for location in data:
+            if location["name"] == "Ibn Battuta Mall":
+                location["isActive"] = "1"
+            else:
+                location["isActive"] = "0"
+        
         return jsonify(data)
     
     except pyodbc.Error as e:
