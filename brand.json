@@ -5,7 +5,7 @@
       "Brands": [
         {
           "Brand": "Dollar Plus",
-          "Area Sqft": 4301,
+          "Area Sqft": 100,
           "Ranking": 1,
           "Mall fitment": 85,
           "Customer Profile": 80,
@@ -18,7 +18,7 @@
         },
         {
           "Brand": "Skechers",
-          "Area Sqft": 4461,
+          "Area Sqft": 100,
           "Ranking": 2,
           "Mall fitment": 85,
           "Customer Profile": 80,
@@ -31,7 +31,7 @@
         },
         {
           "Brand": "Tommy Hilfiger",
-          "Area Sqft": 4111,
+          "Area Sqft": 100,
           "Ranking": 3,
           "Mall fitment": 85,
           "Customer Profile": 80,
@@ -44,7 +44,7 @@
         },
         {
           "Brand": "Charles & Keith",
-          "Area Sqft": 4400,
+          "Area Sqft": 95.6,
           "Ranking": 4,
           "Mall fitment": 82,
           "Customer Profile": 78,
@@ -57,7 +57,7 @@
         },
         {
           "Brand": "Aldo",
-          "Area Sqft": 4200,
+          "Area Sqft": 92.3,
           "Ranking": 5,
           "Mall fitment": 80,
           "Customer Profile": 75,
@@ -75,7 +75,7 @@
       "Brands": [
         {
           "Brand": "Charles & Keith",
-          "Area Sqft": 2851,
+          "Area Sqft": 95,
           "Ranking": 1,
           "Mall fitment": 80,
           "Customer Profile": 75,
@@ -88,7 +88,7 @@
         },
         {
           "Brand": "Crocs",
-          "Area Sqft": 2356,
+          "Area Sqft": 80,
           "Ranking": 2,
           "Mall fitment": 80,
           "Customer Profile": 75,
@@ -101,7 +101,7 @@
         },
         {
           "Brand": "Call It Spring",
-          "Area Sqft": 990,
+          "Area Sqft": 80,
           "Ranking": 3,
           "Mall fitment": 80,
           "Customer Profile": 75,
@@ -114,7 +114,7 @@
         },
         {
           "Brand": "Birkenstock",
-          "Area Sqft": 1205,
+          "Area Sqft": 75,
           "Ranking": 4,
           "Mall fitment": 80,
           "Customer Profile": 75,
@@ -127,7 +127,7 @@
         },
         {
           "Brand": "Tommy Hilfiger",
-          "Area Sqft": 5111,
+          "Area Sqft": 85,
           "Ranking": 5,
           "Mall fitment": 80,
           "Customer Profile": 75,
