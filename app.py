@@ -1778,7 +1778,7 @@ def get_states_by_country():
     finally:
         conn.close()
 
-@app.route('/api/locations', methods=['GET'])
+@app.route('/api/malls', methods=['GET'])
 def get_locations_by_state():
     """Endpoint to retrieve location data by state_id and location_type_id = 36."""
     state_id = request.args.get('state_id', default=None, type=int)
