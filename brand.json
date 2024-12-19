@@ -78,12 +78,12 @@
           "Area Sqft": 95,
           "Ranking": 1,
           "Mall fitment": 80,
-          "Customer Profile": 75,
+          "Customer Profile": 80,
           "Purchasing Power": 70,
           "Competitor Performance": 65,
           "Complimentor Scoring": 68,
           "Vicinity Customer Demographic": 85,
-          "Total": 74.2,
+          "Total": 78,
           "Justification": "Charles & Keith is expected to deliver a 9% growth in sales by targeting female shoppers, who represent over 50% of CCC's existing customer base. Its 2,851 sqft store size makes it a practical replacement."
         },
         {
@@ -104,7 +104,7 @@
           "Area Sqft": 80,
           "Ranking": 3,
           "Mall fitment": 80,
-          "Customer Profile": 75,
+          "Customer Profile": 70,
           "Purchasing Power": 70,
           "Competitor Performance": 65,
           "Complimentor Scoring": 68,
@@ -117,12 +117,12 @@
           "Area Sqft": 75,
           "Ranking": 4,
           "Mall fitment": 80,
-          "Customer Profile": 75,
+          "Customer Profile": 70,
           "Purchasing Power": 70,
           "Competitor Performance": 65,
           "Complimentor Scoring": 68,
           "Vicinity Customer Demographic": 85,
-          "Total": 74.2,
+          "Total": 70,
           "Justification": "Birkenstock is expected to grow in sales by 6%, appealing to health-conscious shoppers. Its focus on quality and comfort aligns with CCC's existing customer profile."
         },
         {
@@ -130,12 +130,12 @@
           "Area Sqft": 85,
           "Ranking": 5,
           "Mall fitment": 80,
-          "Customer Profile": 75,
+          "Customer Profile": 65,
           "Purchasing Power": 70,
           "Competitor Performance": 65,
           "Complimentor Scoring": 68,
           "Vicinity Customer Demographic": 85,
-          "Total": 74.2,
+          "Total": 68,
           "Justification": "Tommy Hilfiger provides a premium alternative to CCC, capturing affluent shoppers and driving a projected 10% sales increase. Its 5,111 sqft space allows for a comprehensive display of its premium offerings."
         }
       ]
