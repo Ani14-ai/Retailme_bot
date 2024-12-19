@@ -1731,6 +1731,45 @@ def get_brands():
         else:
             return jsonify({"error": f"Brand '{brand}' not found"}), 404    
     return jsonify(data)
+    
+@app.route('/api/states', methods=['GET'])
+def get_states_by_country():
+    """Endpoint to retrieve state names based on country_id."""
+    country_id = request.args.get('country_id', default=None, type=int)
+    
+    if not country_id:
+        return jsonify({"error": "Missing country_id parameter"}), 400
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    try:
+        cursor = conn.cursor()
+        # SQL query to fetch states for the given country_id
+        query = """
+        SELECT state_id, state_name
+        FROM [RME].[tb_State]
+        WHERE country_id = ?
+        """
+        cursor.execute(query, country_id)
+        
+        # Fetch all rows and format as a list of dictionaries
+        columns = [column[0] for column in cursor.description]
+        rows = cursor.fetchall()
+        data = [dict(zip(columns, row)) for row in rows]
+        
+        if not data:
+            return jsonify({"error": f"No states found for country_id {country_id}"}), 404
+        
+        return jsonify(data)
+    
+    except pyodbc.Error as e:
+        print("Database query failed:", e)
+        return jsonify({"error": "Error querying database"}), 500
+    
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     initialize_vector_store()
