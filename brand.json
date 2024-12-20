@@ -1,7 +1,7 @@
 {
-  "ComparisonBrands": [
+  "Comparison Brands": [
     {
-      "ComparisonBrand": "HEMA",
+      "Comparison Brand": "HEMA",
       "Brands": [
         {
           "Brand": "Dollar Plus",
@@ -76,7 +76,7 @@
       ]
     },
     {
-      "ComparisonBrand": "CCC",
+      "Comparison Brand": "CCC",
       "Brands": [
         {
           "Brand": "Charles & Keith",
