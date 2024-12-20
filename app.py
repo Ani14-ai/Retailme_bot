@@ -1780,50 +1780,52 @@ def get_states_by_country():
 
 @app.route('/api/malls', methods=['GET'])
 def get_locations_by_state():
-    """Endpoint to retrieve location data by state_id and location_type_id = 36."""
-    state_id = request.args.get('state_id', default=None, type=int)
-    
+    """Retrieve location data by state_id with location_type_id = 36 and add isActive status."""
+    state_id = request.args.get('state_id', type=int)
     if not state_id:
-        return jsonify({"error": "Missing state_id parameter"}), 400
-
-    conn = get_db_connection()
-    if conn is None:
-        return jsonify({"error": "Database connection failed"}), 500
+        return jsonify({"error": "Missing or invalid state_id parameter"}), 400
 
     try:
+        conn = get_db_connection()
         cursor = conn.cursor()
-        # SQL query to fetch locations with state_id and location_type_id = 36
+
+        # SQL query to fetch locations
         query = """
         SELECT location_id, name, latitude, longitude, location_type_id, neighborhood_id, 
                district_id, state_id, created_at, modified_at, Is_Qr, QR_link
         FROM [RME].[tb_Location]
         WHERE state_id = ? AND location_type_id = 36
         """
-        cursor.execute(query, state_id)
-        
-        # Fetch all rows and format as a list of dictionaries
+        cursor.execute(query, (state_id,))
+
+        # Fetch results and format as a list of dictionaries
         columns = [column[0] for column in cursor.description]
         rows = cursor.fetchall()
         data = [dict(zip(columns, row)) for row in rows]
-        
+
         if not data:
             return jsonify({"error": f"No locations found for state_id {state_id} with location_type_id 36"}), 404
-        
-        # Add "isActive" field based on the "name" field
+
+        # Add isActive field based on the "name"
         for location in data:
-            if location["name"] == "Ibn Battuta Mall":
-                location["isActive"] = "1"
+            if location.get("name") in ["Ibn Battuta Mall", "The Dubai Mall"]:
+                location["isActive"] = "1"  # Active for specific malls
             else:
-                location["isActive"] = "0"
-        
+                location["isActive"] = "0"  # Default inactive
+
         return jsonify(data)
-    
+
     except pyodbc.Error as e:
         print("Database query failed:", e)
         return jsonify({"error": "Error querying database"}), 500
-    
+
+    except Exception as e:
+        print("Unexpected error:", e)
+        return jsonify({"error": str(e)}), 500
     finally:
-        conn.close()
+        if conn:
+            conn.close()
+
 
 if __name__ == "__main__":
     initialize_vector_store()
